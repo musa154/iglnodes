@@ -1,0 +1,9 @@
+discord.py>=2.3.0
+python-dotenv
+Flask>=2.2
+flask-socketio
+eventlet
+aiohttp
+docker
+paramiko
+psutil

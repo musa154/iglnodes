@@ -1,0 +1,6 @@
+2025-10-25 18:53:58,945 - discord.client - INFO - logging in using static token
+2025-10-25 18:53:59,933 - IGL NodesBot - ERROR - Failed to initialize Docker client: Error while fetching server API version: (2, 'CreateFile', 'The system cannot find the file specified.')
+2025-10-25 18:54:00,772 - discord.gateway - INFO - Shard ID None has connected to Gateway (Session ID: 93395aa8a985cea98b974a307187ec1c).
+2025-10-25 18:54:02,792 - IGL NodesBot - INFO - VPS Creator#2653 has connected to Discord!
+2025-10-25 18:54:03,259 - IGL NodesBot - INFO - Synced 33 slash commands
+2025-10-25 18:57:59,805 - IGL NodesBot - ERROR - Command error: Hybrid command raised an error: Command 'create_vps' raised an exception: NotFound: 404 Not Found (error code: 10062): Unknown interaction

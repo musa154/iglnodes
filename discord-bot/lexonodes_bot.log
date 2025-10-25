@@ -1,0 +1,25 @@
+2025-10-25 12:38:24,851 - discord.client - INFO - logging in using static token
+2025-10-25 12:38:25,625 - LexoNodesBot - INFO - Docker client initialized successfully
+2025-10-25 12:38:26,396 - discord.gateway - INFO - Shard ID None has connected to Gateway (Session ID: 08b9fc3dca921315f3e8ff9e73371dba).
+2025-10-25 12:38:29,401 - LexoNodesBot - INFO - Zepro#2653 has connected to Discord!
+2025-10-25 12:38:30,199 - LexoNodesBot - INFO - Synced 33 slash commands
+2025-10-25 12:41:22,053 - LexoNodesBot - ERROR - Error running Docker command: Command failed: bash: line 1: echo: write error: Operation not permitted
+
+2025-10-25 12:41:22,053 - LexoNodesBot - WARNING - Could not set memory limit in cgroup: Command failed: bash: line 1: echo: write error: Operation not permitted
+
+2025-10-25 12:41:22,166 - LexoNodesBot - ERROR - Error running Docker command: Command failed: bash: line 1: ufw: command not found
+
+2025-10-25 12:41:22,166 - LexoNodesBot - WARNING - Security setup command failed: ufw allow ssh - Command failed: bash: line 1: ufw: command not found
+
+2025-10-25 12:41:22,224 - LexoNodesBot - ERROR - Error running Docker command: Command failed: bash: line 1: ufw: command not found
+
+2025-10-25 12:41:22,224 - LexoNodesBot - WARNING - Security setup command failed: ufw --force enable - Command failed: bash: line 1: ufw: command not found
+
+2025-10-25 12:44:53,700 - LexoNodesBot - ERROR - Error in system_info: 400 Bad Request (error code: 50035): Invalid Form Body
+In data.embeds.0.fields.3.value: Must be 1024 or fewer in length.
+2025-10-25 12:45:19,785 - LexoNodesBot - INFO - Deleted container f3ed57cedd7cb92775f99b6c4939a39b3c7ef0dc27aaa1ef872d7ed06b57a399 for VPS 5NU1DWF8DW
+2025-10-25 12:57:38,765 - discord.client - INFO - logging in using static token
+2025-10-25 12:57:39,544 - LexoNodesBot - INFO - Docker client initialized successfully
+2025-10-25 12:57:40,464 - discord.gateway - INFO - Shard ID None has connected to Gateway (Session ID: 07f18763325033722b7ffa2a7be41368).
+2025-10-25 12:57:43,467 - LexoNodesBot - INFO - VPS Creator#2653 has connected to Discord!
+2025-10-25 12:57:45,399 - LexoNodesBot - INFO - Synced 33 slash commands

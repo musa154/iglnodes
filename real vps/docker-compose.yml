@@ -1,0 +1,16 @@
+version: "3.9"
+services:
+  bot:
+    build: .
+    container_name: igl_vps_bot
+    restart: unless-stopped
+    environment:
+      - BOT_TOKEN=${BOT_TOKEN}
+      - WEBHOOK_URL=${WEBHOOK_URL}
+      - OWNER_ID=${OWNER_ID}
+      - HOST_IP=${HOST_IP}
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock          # allow controlling Docker on host
+      - ./data.json:/app/data.json
+      - ./vps:/app/vps
+    ports: []

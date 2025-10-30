@@ -1,0 +1,172 @@
+2025-10-25 12:38:24,851 - discord.client - INFO - logging in using static token
+2025-10-25 12:38:25,625 - LexoNodesBot - INFO - Docker client initialized successfully
+2025-10-25 12:38:26,396 - discord.gateway - INFO - Shard ID None has connected to Gateway (Session ID: 08b9fc3dca921315f3e8ff9e73371dba).
+2025-10-25 12:38:29,401 - LexoNodesBot - INFO - Zepro#2653 has connected to Discord!
+2025-10-25 12:38:30,199 - LexoNodesBot - INFO - Synced 33 slash commands
+2025-10-25 12:41:22,053 - LexoNodesBot - ERROR - Error running Docker command: Command failed: bash: line 1: echo: write error: Operation not permitted
+
+2025-10-25 12:41:22,053 - LexoNodesBot - WARNING - Could not set memory limit in cgroup: Command failed: bash: line 1: echo: write error: Operation not permitted
+
+2025-10-25 12:41:22,166 - LexoNodesBot - ERROR - Error running Docker command: Command failed: bash: line 1: ufw: command not found
+
+2025-10-25 12:41:22,166 - LexoNodesBot - WARNING - Security setup command failed: ufw allow ssh - Command failed: bash: line 1: ufw: command not found
+
+2025-10-25 12:41:22,224 - LexoNodesBot - ERROR - Error running Docker command: Command failed: bash: line 1: ufw: command not found
+
+2025-10-25 12:41:22,224 - LexoNodesBot - WARNING - Security setup command failed: ufw --force enable - Command failed: bash: line 1: ufw: command not found
+
+2025-10-25 12:44:53,700 - LexoNodesBot - ERROR - Error in system_info: 400 Bad Request (error code: 50035): Invalid Form Body
+In data.embeds.0.fields.3.value: Must be 1024 or fewer in length.
+2025-10-25 12:45:19,785 - LexoNodesBot - INFO - Deleted container f3ed57cedd7cb92775f99b6c4939a39b3c7ef0dc27aaa1ef872d7ed06b57a399 for VPS 5NU1DWF8DW
+2025-10-25 12:57:38,765 - discord.client - INFO - logging in using static token
+2025-10-25 12:57:39,544 - LexoNodesBot - INFO - Docker client initialized successfully
+2025-10-25 12:57:40,464 - discord.gateway - INFO - Shard ID None has connected to Gateway (Session ID: 07f18763325033722b7ffa2a7be41368).
+2025-10-25 12:57:43,467 - LexoNodesBot - INFO - VPS Creator#2653 has connected to Discord!
+2025-10-25 12:57:45,399 - LexoNodesBot - INFO - Synced 33 slash commands
+2025-10-25 12:59:24,338 - LexoNodesBot - ERROR - Error running Docker command: Command failed: bash: line 1: echo: write error: Operation not permitted
+
+2025-10-25 12:59:24,338 - LexoNodesBot - WARNING - Could not set memory limit in cgroup: Command failed: bash: line 1: echo: write error: Operation not permitted
+
+2025-10-25 12:59:24,451 - LexoNodesBot - ERROR - Error running Docker command: Command failed: bash: line 1: ufw: command not found
+
+2025-10-25 12:59:24,451 - LexoNodesBot - WARNING - Security setup command failed: ufw allow ssh - Command failed: bash: line 1: ufw: command not found
+
+2025-10-25 12:59:24,506 - LexoNodesBot - ERROR - Error running Docker command: Command failed: bash: line 1: ufw: command not found
+
+2025-10-25 12:59:24,506 - LexoNodesBot - WARNING - Security setup command failed: ufw --force enable - Command failed: bash: line 1: ufw: command not found
+
+2025-10-25 13:47:50,586 - LexoNodesBot - INFO - Docker API client initialized
+2025-10-25 13:47:50,588 - discord.client - INFO - logging in using static token
+2025-10-25 13:47:52,439 - discord.gateway - INFO - Shard ID None has connected to Gateway (Session ID: f3c2711737f838972ec7b5be39551174).
+2025-10-25 13:47:55,504 - LexoNodesBot - INFO - Bot logged in as VPS Creator#2653 (id: 1431548015037907024)
+2025-10-25 13:48:20,426 - discord.ext.commands.bot - ERROR - Ignoring exception in command create_vps
+Traceback (most recent call last):
+  File "/home/codespace/.python/current/lib/python3.12/site-packages/discord/app_commands/commands.py", line 859, in _do_call
+    return await self._callback(interaction, **params)  # type: ignore
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/workspaces/codespaces-blank/discord-bot/bot.py", line 760, in create_vps_cmd
+    status_msg = await ctx.send("🚀 Creating VPS... (this may take a while)", ephemeral=False)
+                 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/codespace/.python/current/lib/python3.12/site-packages/discord/ext/commands/context.py", line 1140, in send
+    response = await self.interaction.response.send_message(**kwargs)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/codespace/.python/current/lib/python3.12/site-packages/discord/interactions.py", line 1051, in send_message
+    response = await adapter.create_interaction_response(
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/codespace/.python/current/lib/python3.12/site-packages/discord/webhook/async_.py", line 224, in request
+    raise NotFound(response, data)
+discord.errors.NotFound: 404 Not Found (error code: 10062): Unknown interaction
+
+The above exception was the direct cause of the following exception:
+
+Traceback (most recent call last):
+  File "/home/codespace/.python/current/lib/python3.12/site-packages/discord/ext/commands/hybrid.py", line 463, in _invoke_with_namespace
+    value = await self._do_call(ctx, ctx.kwargs)  # type: ignore
+            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/codespace/.python/current/lib/python3.12/site-packages/discord/app_commands/commands.py", line 877, in _do_call
+    raise CommandInvokeError(self, e) from e
+discord.app_commands.errors.CommandInvokeError: Command 'create_vps' raised an exception: NotFound: 404 Not Found (error code: 10062): Unknown interaction
+
+The above exception was the direct cause of the following exception:
+
+Traceback (most recent call last):
+  File "/home/codespace/.python/current/lib/python3.12/site-packages/discord/ext/commands/hybrid.py", line 463, in _invoke_with_namespace
+    value = await self._do_call(ctx, ctx.kwargs)  # type: ignore
+            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/codespace/.python/current/lib/python3.12/site-packages/discord/app_commands/commands.py", line 877, in _do_call
+    raise CommandInvokeError(self, e) from e
+discord.ext.commands.errors.HybridCommandError: Hybrid command raised an error: Command 'create_vps' raised an exception: NotFound: 404 Not Found (error code: 10062): Unknown interaction
+2025-10-25 13:49:27,464 - discord.client - INFO - logging in using static token
+2025-10-25 13:49:28,339 - LexoNodesBot - INFO - Docker client initialized successfully
+2025-10-25 13:49:28,341 - LexoNodesBot - INFO - Reconnected and started container for VPS BUBCCNFKQO
+2025-10-25 13:49:29,082 - discord.gateway - INFO - Shard ID None has connected to Gateway (Session ID: 352ecc94ff20630d68a28c0e0ca75d07).
+2025-10-25 13:49:32,125 - LexoNodesBot - INFO - VPS Creator#2653 has connected to Discord!
+2025-10-25 13:49:32,662 - LexoNodesBot - INFO - Synced 33 slash commands
+2025-10-25 13:50:55,450 - LexoNodesBot - ERROR - Error running Docker command: Command failed: bash: line 1: echo: write error: Operation not permitted
+
+2025-10-25 13:50:55,450 - LexoNodesBot - WARNING - Could not set memory limit in cgroup: Command failed: bash: line 1: echo: write error: Operation not permitted
+
+2025-10-25 13:50:55,556 - LexoNodesBot - ERROR - Error running Docker command: Command failed: bash: line 1: ufw: command not found
+
+2025-10-25 13:50:55,556 - LexoNodesBot - WARNING - Security setup command failed: ufw allow ssh - Command failed: bash: line 1: ufw: command not found
+
+2025-10-25 13:50:55,612 - LexoNodesBot - ERROR - Error running Docker command: Command failed: bash: line 1: ufw: command not found
+
+2025-10-25 13:50:55,612 - LexoNodesBot - WARNING - Security setup command failed: ufw --force enable - Command failed: bash: line 1: ufw: command not found
+
+2025-10-26 12:56:06,852 - discord.client - INFO - logging in using static token
+2025-10-26 12:56:07,815 - LexoNodesBot - INFO - Docker client initialized successfully
+2025-10-26 12:56:07,819 - LexoNodesBot - INFO - Reconnected and started container for VPS BUBCCNFKQO
+2025-10-26 12:56:07,820 - LexoNodesBot - INFO - Reconnected and started container for VPS J02CKESEBV
+2025-10-26 12:56:08,825 - discord.gateway - INFO - Shard ID None has connected to Gateway (Session ID: 8fe6d9193492bc2e2d7771bcf55c812f).
+2025-10-26 12:56:11,967 - LexoNodesBot - INFO - VPS Creator#2653 has connected to Discord!
+2025-10-26 12:56:12,576 - LexoNodesBot - INFO - Synced 33 slash commands
+2025-10-26 12:58:06,062 - LexoNodesBot - ERROR - Error running Docker command: Command failed: bash: line 1: echo: write error: Operation not permitted
+
+2025-10-26 12:58:06,063 - LexoNodesBot - WARNING - Could not set memory limit in cgroup: Command failed: bash: line 1: echo: write error: Operation not permitted
+
+2025-10-26 12:58:06,188 - LexoNodesBot - ERROR - Error running Docker command: Command failed: bash: line 1: ufw: command not found
+
+2025-10-26 12:58:06,189 - LexoNodesBot - WARNING - Security setup command failed: ufw allow ssh - Command failed: bash: line 1: ufw: command not found
+
+2025-10-26 12:58:06,241 - LexoNodesBot - ERROR - Error running Docker command: Command failed: bash: line 1: ufw: command not found
+
+2025-10-26 12:58:06,241 - LexoNodesBot - WARNING - Security setup command failed: ufw --force enable - Command failed: bash: line 1: ufw: command not found
+
+2025-10-26 14:06:24,639 - discord.client - INFO - logging in using static token
+2025-10-26 14:06:25,413 - LexoNodesBot - INFO - Docker client initialized successfully
+2025-10-26 14:06:25,416 - LexoNodesBot - INFO - Reconnected and started container for VPS BUBCCNFKQO
+2025-10-26 14:06:25,418 - LexoNodesBot - INFO - Reconnected and started container for VPS J02CKESEBV
+2025-10-26 14:06:25,420 - LexoNodesBot - INFO - Reconnected and started container for VPS IRBGPZ4SN5
+2025-10-26 14:06:26,213 - discord.gateway - INFO - Shard ID None has connected to Gateway (Session ID: bef0498a0839389bc3e862408e7db784).
+2025-10-26 14:06:29,341 - LexoNodesBot - INFO - VPS Creator#2653 has connected to Discord!
+2025-10-26 14:06:30,315 - LexoNodesBot - INFO - Synced 33 slash commands
+2025-10-26 14:08:32,265 - LexoNodesBot - INFO - Deleted container fab44ca24a2eef58943497f6a14f2e1fab40a36510370aa3fdedd737a6d29c39 for VPS J02CKESEBV
+2025-10-26 14:09:06,254 - LexoNodesBot - INFO - Deleted container 09905872e312cfe6a1a883116948925a7ea423e703b1410c3af3d6a072011a65 for VPS IRBGPZ4SN5
+2025-10-26 14:09:09,075 - LexoNodesBot - INFO - Deleted container b9b5627756ab8ff79d39e252ce3e7f6d571bcb295363b9f81afa6fce5e2f523f for VPS BUBCCNFKQO
+2025-10-26 14:09:09,469 - LexoNodesBot - ERROR - Error in delete_vps: 404 Not Found (error code: 10062): Unknown interaction
+2025-10-26 14:09:09,503 - LexoNodesBot - ERROR - Error in delete_vps: 404 Not Found (error code: 10062): Unknown interaction
+2025-10-26 14:09:09,897 - LexoNodesBot - ERROR - Command error: Hybrid command raised an error: Command 'delete_vps' raised an exception: NotFound: 404 Not Found (error code: 10062): Unknown interaction
+2025-10-26 14:09:09,913 - LexoNodesBot - ERROR - Command error: Hybrid command raised an error: Command 'delete_vps' raised an exception: NotFound: 404 Not Found (error code: 10062): Unknown interaction
+2025-10-26 14:09:10,233 - discord.client - ERROR - Ignoring exception in on_command_error
+Traceback (most recent call last):
+  File "/home/codespace/.python/current/lib/python3.12/site-packages/discord/client.py", line 504, in _run_event
+    await coro(*args, **kwargs)
+  File "/workspaces/codespaces-blank/discord-bot/bot.py", line 2644, in on_command_error
+    await ctx.send(f"❌ An error occurred: {str(error)}", ephemeral=True)
+  File "/home/codespace/.python/current/lib/python3.12/site-packages/discord/ext/commands/context.py", line 1140, in send
+    response = await self.interaction.response.send_message(**kwargs)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/codespace/.python/current/lib/python3.12/site-packages/discord/interactions.py", line 1051, in send_message
+    response = await adapter.create_interaction_response(
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/codespace/.python/current/lib/python3.12/site-packages/discord/webhook/async_.py", line 224, in request
+    raise NotFound(response, data)
+discord.errors.NotFound: 404 Not Found (error code: 10062): Unknown interaction
+2025-10-26 14:09:10,297 - discord.client - ERROR - Ignoring exception in on_command_error
+Traceback (most recent call last):
+  File "/home/codespace/.python/current/lib/python3.12/site-packages/discord/client.py", line 504, in _run_event
+    await coro(*args, **kwargs)
+  File "/workspaces/codespaces-blank/discord-bot/bot.py", line 2644, in on_command_error
+    await ctx.send(f"❌ An error occurred: {str(error)}", ephemeral=True)
+  File "/home/codespace/.python/current/lib/python3.12/site-packages/discord/ext/commands/context.py", line 1140, in send
+    response = await self.interaction.response.send_message(**kwargs)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/codespace/.python/current/lib/python3.12/site-packages/discord/interactions.py", line 1051, in send_message
+    response = await adapter.create_interaction_response(
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/codespace/.python/current/lib/python3.12/site-packages/discord/webhook/async_.py", line 224, in request
+    raise NotFound(response, data)
+discord.errors.NotFound: 404 Not Found (error code: 10062): Unknown interaction
+2025-10-26 14:10:13,526 - LexoNodesBot - ERROR - Error running Docker command: Command failed: bash: line 1: echo: write error: Operation not permitted
+
+2025-10-26 14:10:13,527 - LexoNodesBot - WARNING - Could not set memory limit in cgroup: Command failed: bash: line 1: echo: write error: Operation not permitted
+
+2025-10-26 14:10:13,671 - LexoNodesBot - ERROR - Error running Docker command: Command failed: bash: line 1: ufw: command not found
+
+2025-10-26 14:10:13,672 - LexoNodesBot - WARNING - Security setup command failed: ufw allow ssh - Command failed: bash: line 1: ufw: command not found
+
+2025-10-26 14:10:13,743 - LexoNodesBot - ERROR - Error running Docker command: Command failed: bash: line 1: ufw: command not found
+
+2025-10-26 14:10:13,743 - LexoNodesBot - WARNING - Security setup command failed: ufw --force enable - Command failed: bash: line 1: ufw: command not found
+

@@ -1,0 +1,568 @@
+{% extends "base.html" %}
+
+{% block title %}File Manager - {{ vps.vps_id }} - {{ panel_name }}{% endblock %}
+
+{% block content %}
+<div class="max-w-7xl mx-auto">
+    <!-- Header Section -->
+    <div class="flex flex-col lg:flex-row lg:items-center lg:justify-between mb-6 backdrop-blur-sm bg-gray-900/80 rounded-xl p-4">
+        <div>
+            <h1 class="text-2xl font-bold text-gray-100">File Manager</h1>
+            <div class="flex items-center space-x-4 mt-2">
+                <span class="text-gray-400">VPS: {{ vps.vps_id }}</span>
+                <span class="px-2 py-1 bg-blue-900/70 text-blue-200 text-sm rounded">
+                    {{ vps.status|upper }}
+                </span>
+            </div>
+        </div>
+        
+        <div class="flex space-x-2 mt-4 lg:mt-0">
+            <a href="{{ url_for('vps_details', vps_id=vps.vps_id) }}" 
+                class="inline-flex items-center space-x-2 px-4 py-2 border border-gray-700/50 rounded-lg text-gray-300 bg-gray-800/50 hover:bg-gray-700/50 transition-all duration-200">
+                <i class="fas fa-arrow-left"></i>
+                <span>Back to VPS</span>
+            </a>
+            
+            <button onclick="refreshFiles()" 
+                class="inline-flex items-center space-x-2 px-4 py-2 bg-blue-600/70 hover:bg-blue-700/70 text-white rounded-lg transition-all duration-200 backdrop-blur-sm">
+                <i class="fas fa-sync-alt"></i>
+                <span>Refresh</span>
+            </button>
+        </div>
+    </div>
+
+    <!-- Breadcrumb Navigation -->
+    <div class="card p-4 mb-6 backdrop-blur-sm bg-gray-900/80 rounded-xl">
+        <nav class="flex" aria-label="Breadcrumb">
+            <ol class="inline-flex items-center space-x-1 md:space-x-3">
+                <li class="inline-flex items-center">
+                    <a href="#" onclick="navigateTo('/')" class="inline-flex items-center text-sm font-medium text-gray-400 hover:text-blue-400 transition-colors">
+                        <i class="fas fa-home mr-2"></i>
+                        Root
+                    </a>
+                </li>
+                {% set path_parts = path.split('/') %}
+                {% for part in path_parts %}
+                    {% if part %}
+                        <li>
+                            <div class="flex items-center">
+                                <i class="fas fa-chevron-right text-gray-500 mx-2"></i>
+                                <a href="#" onclick="navigateTo('{{ '/'.join(path_parts[:loop.index]) }}')" 
+                                   class="ml-1 text-sm font-medium text-gray-400 hover:text-blue-400 transition-colors">
+                                    {{ part }}
+                                </a>
+                            </div>
+                        </li>
+                    {% endif %}
+                {% endfor %}
+            </ol>
+        </nav>
+    </div>
+
+    <!-- Search and Sort -->
+    <div class="flex items-center space-x-3 mb-6">
+        <div class="relative">
+            <input type="text" id="searchInput" placeholder="Search files..." 
+                   class="pl-10 pr-4 py-2 border border-gray-700/50 rounded-lg bg-gray-800/50 text-gray-200 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 backdrop-blur-sm transition-all duration-200">
+            <i class="fas fa-search absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-500"></i>
+        </div>
+        
+        <select id="sortSelect" onchange="sortFiles()" 
+                class="px-3 py-2 border border-gray-700/50 rounded-lg bg-gray-800/50 text-gray-200 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 backdrop-blur-sm transition-all duration-200">
+            <option value="name">Sort by Name</option>
+            <option value="size">Sort by Size</option>
+            <option value="modified">Sort by Modified</option>
+        </select>
+    </div>
+
+    <!-- Files Table -->
+    <div class="card p-0 overflow-hidden backdrop-blur-sm bg-gray-900/80 rounded-xl">
+        <!-- Table Header -->
+        <div class="bg-gray-800/50 px-6 py-3 border-b border-gray-700/50">
+            <div class="grid grid-cols-12 gap-4 text-sm font-medium text-gray-400">
+                <div class="col-span-5">Name</div>
+                <div class="col-span-2">Size</div>
+                <div class="col-span-3">Modified</div>
+                <div class="col-span-2">Permissions</div>
+            </div>
+        </div>
+
+        <!-- Table Body -->
+        <div id="filesContainer">
+            {% if files %}
+                {% for file in files %}
+                    {% set is_dir = file.startswith('d') %}
+                    {% set is_link = file.startswith('l') %}
+                    {% set parts = file.split() %}
+                    {% set permissions = parts[0] %}
+                    {% set name = parts[-1] %}
+                    
+                    <div class="file-item border-b border-gray-700/50 hover:bg-gray-800/50 transition-all duration-200">
+                        <div class="grid grid-cols-12 gap-4 px-6 py-4 items-center">
+                            <!-- Name Column -->
+                            <div class="col-span-5">
+                                <div class="flex items-center space-x-3">
+                                    <i class="{% if is_dir %}fas fa-folder text-yellow-400{% elif is_link %}fas fa-link text-blue-400{% else %}fas fa-file text-gray-500{% endif %}"></i>
+                                    <div class="flex-1 min-w-0">
+                                        {% if is_dir %}
+                                            <a href="#" onclick="navigateTo('{{ path }}/{{ name }}')" 
+                                               class="text-blue-400 hover:text-blue-300 font-medium truncate cursor-pointer transition-colors">
+                                                {{ name }}
+                                            </a>
+                                        {% else %}
+                                            <span class="text-gray-200 font-medium truncate">{{ name }}</span>
+                                        {% endif %}
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <!-- Size Column -->
+                            <div class="col-span-2">
+                                <span class="text-sm text-gray-400">
+                                    {% if is_dir %}
+                                        -
+                                    {% else %}
+                                        {{ parts[4] if parts|length > 4 else 'N/A' }}
+                                    {% endif %}
+                                </span>
+                            </div>
+                            
+                            <!-- Modified Column -->
+                            <div class="col-span-3">
+                                <span class="text-sm text-gray-400">
+                                    {{ parts[5] if parts|length > 5 else '' }} {{ parts[6] if parts|length > 6 else '' }} {{ parts[7] if parts|length > 7 else '' }}
+                                </span>
+                            </div>
+                            
+                            <!-- Permissions Column -->
+                            <div class="col-span-2">
+                                <div class="flex items-center justify-between">
+                                    <code class="text-xs font-mono text-gray-400 bg-gray-700/50 px-2 py-1 rounded">
+                                        {{ permissions }}
+                                    </code>
+                                    <div class="flex space-x-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                                        {% if not is_dir %}
+                                        <button onclick="downloadFile('{{ name }}')" 
+                                                class="p-1 text-blue-400 hover:text-blue-300 transition-colors"
+                                                title="Download">
+                                            <i class="fas fa-download text-sm"></i>
+                                        </button>
+                                        {% endif %}
+                                        <button onclick="showFileActions('{{ name }}', {{ is_dir|lower }})" 
+                                                class="p-1 text-gray-400 hover:text-gray-300 transition-colors"
+                                                title="Actions">
+                                            <i class="fas fa-ellipsis-h text-sm"></i>
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                {% endfor %}
+            {% else %}
+                <!-- Empty State -->
+                <div class="text-center py-12">
+                    <i class="fas fa-folder-open text-4xl text-gray-600 mb-4"></i>
+                    <h3 class="text-lg font-medium text-gray-200 mb-2">No files found</h3>
+                    <p class="text-gray-400 mb-4">This directory is empty</p>
+                    <button onclick="showUploadModal()" 
+                        class="inline-flex items-center space-x-2 px-4 py-2 bg-blue-600/70 hover:bg-blue-700/70 text-white rounded-lg transition-all duration-200 backdrop-blur-sm">
+                        <i class="fas fa-upload"></i>
+                        <span>Upload Files</span>
+                    </button>
+                </div>
+            {% endif %}
+        </div>
+    </div>
+
+    <!-- Current Path Info -->
+    <div class="mt-4 text-sm text-gray-400">
+        Current path: <code class="bg-gray-800/50 px-2 py-1 rounded backdrop-blur-sm">{{ path }}</code>
+    </div>
+</div>
+
+<!-- File Actions Modal -->
+<div id="fileActionsModal" class="fixed inset-0 bg-black/60 hidden items-center justify-center z-50 p-4">
+    <div class="bg-gray-900/80 backdrop-blur-sm rounded-xl w-full max-w-sm">
+        <div class="p-6 border-b border-gray-700/50">
+            <h3 class="text-lg font-semibold text-gray-100" id="fileNameTitle">File Actions</h3>
+        </div>
+        
+        <div class="p-4">
+            <div class="space-y-2">
+                <button onclick="renameFile()" 
+                    class="w-full text-left px-4 py-3 text-gray-300 hover:bg-gray-800/50 rounded-lg transition-all duration-200 flex items-center space-x-3">
+                    <i class="fas fa-edit text-blue-400"></i>
+                    <span>Rename</span>
+                </button>
+                
+                <button onclick="deleteFile()" 
+                    class="w-full text-left px-4 py-3 text-gray-300 hover:bg-gray-800/50 rounded-lg transition-all duration-200 flex items-center space-x-3">
+                    <i class="fas fa-trash text-red-400"></i>
+                    <span>Delete</span>
+                </button>
+                
+                <button onclick="downloadSelectedFile()" id="downloadAction" 
+                    class="w-full text-left px-4 py-3 text-gray-300 hover:bg-gray-800/50 rounded-lg transition-all duration-200 flex items-center space-x-3">
+                    <i class="fas fa-download text-green-400"></i>
+                    <span>Download</span>
+                </button>
+                
+                <button onclick="viewFilePermissions()" 
+                    class="w-full text-left px-4 py-3 text-gray-300 hover:bg-gray-800/50 rounded-lg transition-all duration-200 flex items-center space-x-3">
+                    <i class="fas fa-shield-alt text-purple-400"></i>
+                    <span>Permissions</span>
+                </button>
+            </div>
+        </div>
+        
+        <div class="p-4 border-t border-gray-700/50 bg-gray-800/50 rounded-b-xl">
+            <button onclick="hideFileActionsModal()" 
+                class="w-full px-4 py-2 border border-gray-700/50 text-gray-300 rounded-lg hover:bg-gray-700/50 transition-all duration-200 backdrop-blur-sm">
+                Close
+            </button>
+        </div>
+    </div>
+</div>
+
+<!-- Notification Toast -->
+<div id="toast" class="fixed top-4 right-4 z-50 transform transition-transform duration-300 translate-x-full">
+    <div class="bg-gray-900/80 text-white px-6 py-4 rounded-xl shadow-lg max-w-sm backdrop-blur-sm">
+        <div class="flex items-center space-x-3">
+            <i id="toastIcon" class="fas fa-info-circle text-blue-400"></i>
+            <div class="flex-1">
+                <div class="font-semibold" id="toastTitle">Notification</div>
+                <div class="text-sm text-gray-300" id="toastMessage">Operation completed</div>
+            </div>
+            <button onclick="hideToast()" class="text-gray-400 hover:text-white">
+                <i class="fas fa-times"></i>
+            </button>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    let selectedFile = null;
+    let isSelectedFileDirectory = false;
+
+    // Navigation
+    function navigateTo(newPath) {
+        window.location.href = `{{ url_for('vps_file_manager', vps_id=vps.vps_id) }}?path=${encodeURIComponent(newPath)}`;
+    }
+
+    function refreshFiles() {
+        window.location.reload();
+    }
+
+    // Upload Functions
+    function showUploadModal() {
+        document.getElementById('uploadModal').classList.remove('hidden');
+    }
+
+    function hideUploadModal() {
+        document.getElementById('uploadModal').classList.add('hidden');
+        document.getElementById('uploadProgress').classList.add('hidden');
+        document.getElementById('uploadForm').reset();
+    }
+
+    function uploadFiles() {
+        const fileInput = document.getElementById('fileInput');
+        const files = fileInput.files;
+        
+        if (files.length === 0) {
+            showToast('No files selected', 'Please select at least one file to upload', 'red');
+            return;
+        }
+
+        const formData = new FormData();
+        for (let i = 0; i < files.length; i++) {
+            formData.append('file', files[i]);
+        }
+        formData.append('path', '{{ path }}');
+    }
+
+    // Folder Operations
+    function createNewFolder() {
+        document.getElementById('createFolderModal').classList.remove('hidden');
+        document.getElementById('folderNameInput').value = '';
+    }
+
+    function hideCreateFolderModal() {
+        document.getElementById('createFolderModal').classList.add('hidden');
+    }
+
+    function createFolder() {
+        const folderName = document.getElementById('folderNameInput').value.trim();
+        
+        if (!folderName) {
+            showToast('Invalid name', 'Please enter a folder name', 'red');
+            return;
+        }
+
+        fetch('{{ url_for("vps_file_manager", vps_id=vps.vps_id) }}', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/x-www-form-urlencoded',
+            },
+            body: `action=create_folder&folder_name=${encodeURIComponent(folderName)}&path={{ path }}`
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                showToast('Folder created', `Folder "${folderName}" created successfully`, 'green');
+                hideCreateFolderModal();
+                refreshFiles();
+            } else {
+                throw new Error(data.error);
+            }
+        })
+        .catch(error => {
+            showToast('Error', error.message, 'red');
+        });
+    }
+
+    function createNewFile() {
+        const fileName = prompt('Enter file name:');
+        if (!fileName) return;
+
+        fetch('{{ url_for("vps_file_manager", vps_id=vps.vps_id) }}', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/x-www-form-urlencoded',
+            },
+            body: `action=create_file&file_name=${encodeURIComponent(fileName)}&path={{ path }}`
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                showToast('File created', `File "${fileName}" created successfully`, 'green');
+                refreshFiles();
+            } else {
+                throw new Error(data.error);
+            }
+        })
+        .catch(error => {
+            showToast('Error', error.message, 'red');
+        });
+    }
+
+    // File Actions
+    function showFileActions(fileName, isDirectory) {
+        selectedFile = fileName;
+        isSelectedFileDirectory = isDirectory;
+        
+        document.getElementById('fileNameTitle').textContent = `Actions: ${fileName}`;
+        document.getElementById('downloadAction').style.display = isDirectory ? 'none' : 'flex';
+        document.getElementById('fileActionsModal').classList.remove('hidden');
+    }
+
+    function hideFileActionsModal() {
+        document.getElementById('fileActionsModal').classList.add('hidden');
+        selectedFile = null;
+    }
+
+    function downloadSelectedFile() {
+        if (selectedFile && !isSelectedFileDirectory) {
+            downloadFile(selectedFile);
+            hideFileActionsModal();
+        }
+    }
+
+    function renameFile() {
+        if (!selectedFile) return;
+        
+        const newName = prompt(`Rename "${selectedFile}" to:`, selectedFile);
+        if (!newName || newName === selectedFile) return;
+
+        fetch('{{ url_for("vps_file_manager", vps_id=vps.vps_id) }}', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/x-www-form-urlencoded',
+            },
+            body: `action=rename&old_name=${encodeURIComponent(selectedFile)}&new_name=${encodeURIComponent(newName)}&path={{ path }}`
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                showToast('File renamed', `"${selectedFile}" renamed to "${newName}"`, 'green');
+                hideFileActionsModal();
+                refreshFiles();
+            } else {
+                throw new Error(data.error);
+            }
+        })
+        .catch(error => {
+            showToast('Error', error.message, 'red');
+        });
+    }
+
+    function deleteFile() {
+        if (!selectedFile) return;
+        
+        const confirmDelete = confirm(`Are you sure you want to delete "${selectedFile}"?`);
+        if (!confirmDelete) return;
+
+        fetch('{{ url_for("vps_file_manager", vps_id=vps.vps_id) }}', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/x-www-form-urlencoded',
+            },
+            body: `action=delete&file_name=${encodeURIComponent(selectedFile)}&path={{ path }}&is_directory=${isSelectedFileDirectory}`
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                showToast('File deleted', `"${selectedFile}" deleted successfully`, 'green');
+                hideFileActionsModal();
+                refreshFiles();
+            } else {
+                throw new Error(data.error);
+            }
+        })
+        .catch(error => {
+            showToast('Error', error.message, 'red');
+        });
+    }
+
+    function viewFilePermissions() {
+        if (!selectedFile) return;
+        showToast('Permissions', `Viewing permissions for "${selectedFile}"`, 'blue');
+    }
+
+    // Search and Sort
+    function sortFiles() {
+        const sortBy = document.getElementById('sortSelect').value;
+        showToast('Sorting', `Files sorted by ${sortBy}`, 'blue');
+    }
+
+    // Toast Notifications
+    function showToast(title, message, type) {
+        const toast = document.getElementById('toast');
+        const toastTitle = document.getElementById('toastTitle');
+        const toastMessage = document.getElementById('toastMessage');
+        const toastIcon = document.getElementById('toastIcon');
+        
+        const icons = {
+            green: 'fa-check-circle',
+            red: 'fa-exclamation-circle',
+            blue: 'fa-info-circle',
+            yellow: 'fa-exclamation-triangle'
+        };
+        
+        const colors = {
+            green: 'text-green-400',
+            red: 'text-red-400',
+            blue: 'text-blue-400',
+            yellow: 'text-yellow-400'
+        };
+        
+        toastTitle.textContent = title;
+        toastMessage.textContent = message;
+        toastIcon.className = `fas ${icons[type]} ${colors[type]}`;
+        
+        toast.classList.remove('translate-x-full');
+        
+        setTimeout(() => {
+            hideToast();
+        }, 4000);
+    }
+
+    function hideToast() {
+        const toast = document.getElementById('toast');
+        toast.classList.add('translate-x-full');
+    }
+
+    // Initialize search functionality
+    document.getElementById('searchInput').addEventListener('input', function(e) {
+        const searchTerm = e.target.value.toLowerCase();
+        const fileItems = document.querySelectorAll('.file-item');
+        
+        fileItems.forEach(item => {
+            const fileName = item.querySelector('.text-blue-400, .text-gray-200').textContent.toLowerCase();
+            if (fileName.includes(searchTerm)) {
+                item.style.display = 'block';
+            } else {
+                item.style.display = 'none';
+            }
+        });
+    });
+
+    // Add hover effects to file items
+    document.addEventListener('DOMContentLoaded', function() {
+        const fileItems = document.querySelectorAll('.file-item');
+        fileItems.forEach(item => {
+            item.addEventListener('mouseenter', function() {
+                this.classList.add('group');
+            });
+            item.addEventListener('mouseleave', function() {
+                this.classList.remove('group');
+            });
+        });
+    });
+</script>
+
+<style>
+.file-item {
+    transition: all 0.3s ease-in-out;
+}
+
+.file-item:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+}
+
+/* Custom scrollbar for file list */
+#filesContainer {
+    scrollbar-width: thin;
+    scrollbar-color: rgba(107, 114, 128, 0.5) transparent;
+}
+
+#filesContainer::-webkit-scrollbar {
+    width: 6px;
+}
+
+#filesContainer::-webkit-scrollbar-track {
+    background: transparent;
+}
+
+#filesContainer::-webkit-scrollbar-thumb {
+    background: rgba(107, 114, 128, 0.5);
+    border-radius: 3px;
+}
+
+#filesContainer::-webkit-scrollbar-thumb:hover {
+    background: rgba(107, 114, 128, 0.7);
+}
+
+/* Responsive design */
+@media (max-width: 768px) {
+    .grid-cols-12 {
+        grid-template-columns: 1fr;
+        gap: 1rem;
+    }
+    
+    .col-span-5,
+    .col-span-2,
+    .col-span-3 {
+        grid-column: 1 / -1;
+    }
+    
+    .file-item .grid {
+        grid-template-columns: 1fr;
+        gap: 0.5rem;
+    }
+}
+
+/* Loading animation */
+@keyframes pulse {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.6; }
+}
+
+.loading {
+    animation: pulse 2s infinite;
+}
+</style>
+{% endblock %}

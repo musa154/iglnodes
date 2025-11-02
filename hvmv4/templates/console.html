@@ -1,0 +1,359 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+  <title>{{ panel_name }} | {{ vps['name'] }} Console</title>
+
+  <!-- TailwindCSS -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <!-- Favicon -->
+  <link rel="icon" type="image/svg+xml" href="https://i.imgur.com/4qGd3U2.png">
+
+  <!-- Xterm.js -->
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/xterm@5.3.0/css/xterm.css" />
+  <script src="https://cdn.jsdelivr.net/npm/xterm@5.3.0/lib/xterm.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/xterm-addon-fit@0.8.0/lib/xterm-addon-fit.min.js"></script>
+
+  <!-- Socket.IO -->
+  <script src="https://cdn.socket.io/4.7.5/socket.io.min.js"></script>
+
+  <style>
+    html, body {
+      height: 100%;
+      margin: 0;
+      overflow: hidden;
+      background-color: #0f172a;
+      color: #f8fafc;
+      font-family: 'Inter', sans-serif;
+      -webkit-tap-highlight-color: transparent;
+    }
+    
+    #terminal-container {
+      height: calc(100vh - 120px);
+      width: 100%;
+      background: #000;
+      border-radius: 0.5rem;
+      overflow: hidden;
+      position: relative;
+    }
+    
+    #terminal {
+      height: 100%;
+      width: 100%;
+      padding: 8px;
+      box-sizing: border-box;
+    }
+    
+    .xterm {
+      font-family: 'Courier New', monospace;
+      font-size: 14px;
+      line-height: 1.2;
+    }
+    
+    .fade {
+      animation: fadeIn 0.3s ease;
+    }
+    
+    @keyframes fadeIn {
+      from { opacity: 0; }
+      to { opacity: 1; }
+    }
+    
+    .status-connecting {
+      background-color: #f59e0b;
+    }
+    
+    .status-connected {
+      background-color: #10b981;
+    }
+    
+    .status-disconnected {
+      background-color: #ef4444;
+    }
+    
+    .status-error {
+      background-color: #dc2626;
+    }
+    
+    /* Mobile optimizations */
+    @media (max-width: 768px) {
+      #terminal-container {
+        height: calc(100vh - 140px);
+      }
+      
+      .xterm {
+        font-size: 12px;
+      }
+      
+      header {
+        padding: 12px 8px;
+      }
+      
+      .btn {
+        padding: 6px 10px;
+        font-size: 14px;
+      }
+    }
+    
+    /* Prevent zoom on input for iOS */
+    @media screen and (max-width: 768px) {
+      input, select, textarea {
+        font-size: 16px;
+      }
+    }
+    
+    /* Loading animation */
+    .loading-dots:after {
+      content: '';
+      animation: dots 1.5s steps(5, end) infinite;
+    }
+    
+    @keyframes dots {
+      0%, 20% { content: ''; }
+      40% { content: '.'; }
+      60% { content: '..'; }
+      80%, 100% { content: '...'; }
+    }
+  </style>
+</head>
+
+<body class="flex flex-col h-screen">
+  <!-- Header -->
+  <header class="bg-slate-800 text-slate-100 p-4 flex justify-between items-center shadow-md">
+    <div class="font-semibold text-lg truncate">
+      🖥️ Console — {{ vps['name'] }}
+    </div>
+    <div class="flex items-center gap-2">
+      <button id="reconnectBtn" class="bg-green-600 hover:bg-green-700 px-3 py-2 rounded text-white transition btn">
+        🔄 Reconnect
+      </button>
+      <a href="/dashboard" class="bg-slate-700 hover:bg-slate-600 px-3 py-2 rounded text-white transition btn">
+        ← Back
+      </a>
+    </div>
+  </header>
+
+  <!-- Terminal Container -->
+  <main class="flex-1 p-2 md:p-4">
+    <div id="terminal-container">
+      <div id="terminal"></div>
+    </div>
+  </main>
+
+  <!-- Footer Status -->
+  <footer id="statusBar" class="status-connecting text-white text-sm text-center py-3 transition-colors duration-300">
+    <span id="statusText">🕓 Connecting to {{ vps['ip'] }}:{{ vps['port'] or 22 }}<span class="loading-dots"></span></span>
+  </footer>
+
+  <script>
+    // Initialize terminal with fit addon
+    const term = new Terminal({
+      cursorBlink: true,
+      scrollback: 5000,
+      fontSize: 14,
+      theme: {
+        background: '#000000',
+        foreground: '#ffffff',
+        cursor: '#00ff00',
+        selection: '#ffffff40'
+      }
+    });
+
+    const fitAddon = new FitAddon.FitAddon();
+    term.loadAddon(fitAddon);
+
+    const terminalContainer = document.getElementById('terminal');
+    const statusBar = document.getElementById('statusBar');
+    const statusText = document.getElementById('statusText');
+    const reconnectBtn = document.getElementById('reconnectBtn');
+
+    // Socket.IO connection with error handling
+    let socket;
+    try {
+      socket = io({ 
+        transports: ["websocket", "polling"],
+        timeout: 10000
+      });
+    } catch (error) {
+      console.error('Failed to initialize Socket.IO:', error);
+      updateStatus('error', 'Failed to initialize connection');
+    }
+
+    term.open(terminalContainer);
+    
+    // Fit terminal to container
+    setTimeout(() => {
+      try {
+        fitAddon.fit();
+      } catch (error) {
+        console.error('Failed to fit terminal:', error);
+      }
+    }, 100);
+
+    let connected = false;
+    let reconnecting = false;
+    let connectionTimeout;
+
+    function updateStatus(status, message) {
+      statusBar.className = `text-white text-sm text-center py-3 transition-colors duration-300 status-${status}`;
+      statusText.innerHTML = message;
+    }
+
+    function connectSSH() {
+      clearTimeout(connectionTimeout);
+      
+      updateStatus('connecting', `🕓 Connecting to {{ vps['ip'] }}:{{ vps['port'] or 22 }}<span class="loading-dots"></span>`);
+      connected = false;
+      
+      // Set connection timeout
+      connectionTimeout = setTimeout(() => {
+        if (!connected) {
+          updateStatus('error', '❌ Connection timeout. Check server availability.');
+          term.write('\r\n❌ Connection timeout. Please check if the server is available.\r\n');
+        }
+      }, 15000);
+
+      if (socket && socket.connected) {
+        socket.emit('ssh_connect', {
+          host: "127.0.0.1",
+          port: "{{ vps.port }}",
+          username: "{{ vps.username }}",
+          password: "{{ vps.password }}"
+        });
+      } else {
+        updateStatus('error', '❌ Socket not connected. Trying to reconnect...');
+        setTimeout(connectSSH, 2000);
+      }
+    }
+
+    // Socket event handlers
+    if (socket) {
+      socket.on('connect', () => {
+        console.log('Socket connected');
+        connectSSH();
+      });
+
+      socket.on('ssh_output', (data) => {
+        clearTimeout(connectionTimeout);
+        
+        try {
+          term.write(data.replace(/\n/g, '\r\n'));
+        } catch (error) {
+          console.error('Error writing to terminal:', error);
+        }
+
+        if (data.includes("✅ Connected") || data.includes("Last login")) {
+          connected = true;
+          reconnecting = false;
+          updateStatus('connected', `✅ Connected to {{ vps['ip'] }}:{{ vps['port'] or 22 }}`);
+        } else if (data.includes("❌") || data.includes("failed") || data.includes("error") || data.includes("Error")) {
+          connected = false;
+          updateStatus('error', '❌ Connection failed. Check credentials or network.');
+        } else if (data.includes("SSH session closed") || data.includes("Disconnected") || data.includes("Connection closed")) {
+          connected = false;
+          updateStatus('disconnected', '🔌 SSH session closed.');
+        }
+      });
+
+      socket.on('ssh_error', (error) => {
+        console.error('SSH Error:', error);
+        connected = false;
+        updateStatus('error', `❌ SSH Error: ${error.message || 'Unknown error'}`);
+      });
+
+      socket.on('disconnect', (reason) => {
+        console.log('Socket disconnected:', reason);
+        connected = false;
+        updateStatus('disconnected', '🔌 Disconnected from server.');
+        term.write('\r\n🔌 Disconnected from server. Press Reconnect to rejoin.\r\n');
+      });
+
+      socket.on('connect_error', (error) => {
+        console.error('Socket connection error:', error);
+        connected = false;
+        updateStatus('error', '❌ Failed to connect to server.');
+      });
+    }
+
+    // Terminal input handling
+    term.onData((data) => {
+      if (connected && socket) {
+        socket.emit('ssh_input', data);
+      }
+    });
+
+    // Reconnect button
+    reconnectBtn.addEventListener('click', () => {
+      if (reconnecting) return;
+      
+      reconnecting = true;
+      term.write('\r\n🔄 Attempting to reconnect...\r\n');
+      
+      if (socket && !socket.connected) {
+        socket.connect();
+      }
+      
+      setTimeout(() => {
+        connectSSH();
+        reconnecting = false;
+      }, 1000);
+    });
+
+    // Handle window resize
+    let resizeTimeout;
+    window.addEventListener('resize', () => {
+      clearTimeout(resizeTimeout);
+      resizeTimeout = setTimeout(() => {
+        try {
+          fitAddon.fit();
+        } catch (error) {
+          console.error('Error resizing terminal:', error);
+        }
+      }, 250);
+    });
+
+    // Handle visibility change (tab switching)
+    document.addEventListener('visibilitychange', () => {
+      if (!document.hidden) {
+        setTimeout(() => {
+          try {
+            fitAddon.fit();
+          } catch (error) {
+            console.error('Error resizing terminal after visibility change:', error);
+          }
+        }, 100);
+      }
+    });
+
+    // Mobile keyboard handling
+    if (/Android|iPhone|iPad|iPod/i.test(navigator.userAgent)) {
+      // Focus terminal when tapping on container (for mobile keyboards)
+      terminalContainer.addEventListener('click', () => {
+        term.focus();
+      });
+      
+      // Prevent default actions that might interfere
+      document.addEventListener('touchstart', (e) => {
+        if (e.touches.length > 1) {
+          e.preventDefault();
+        }
+      }, { passive: false });
+    }
+
+    // Initialize connection
+    if (socket && socket.connected) {
+      connectSSH();
+    } else if (socket) {
+      socket.connect();
+    }
+
+    // Cleanup on page unload
+    window.addEventListener('beforeunload', () => {
+      if (socket) {
+        socket.disconnect();
+      }
+    });
+  </script>
+</body>
+</html>

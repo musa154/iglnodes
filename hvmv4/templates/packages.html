@@ -1,0 +1,797 @@
+{% extends "base.html" %}
+
+{% block title %}Package Manager - {{ vps.vps_id }} - {{ panel_name }}{% endblock %}
+
+{% block content %}
+<div class="max-w-7xl mx-auto">
+    <!-- Header Section -->
+    <div class="flex flex-col lg:flex-row lg:items-center lg:justify-between mb-6">
+        <div>
+            <h1 class="text-2xl font-bold text-gray-900 dark:text-white">Package Manager</h1>
+            <div class="flex items-center space-x-4 mt-2">
+                <span class="text-gray-600 dark:text-gray-400">VPS: {{ vps.vps_id }}</span>
+                <span class="px-2 py-1 bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200 text-sm rounded">
+                    {{ vps.status|upper }}
+                </span>
+            </div>
+        </div>
+        
+        <div class="flex space-x-2 mt-4 lg:mt-0">
+            <a href="{{ url_for('vps_details', vps_id=vps.vps_id) }}" 
+                class="inline-flex items-center space-x-2 px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors">
+                <i class="fas fa-arrow-left"></i>
+                <span>Back to VPS</span>
+            </a>
+            
+            <button onclick="refreshPackages()" 
+                class="inline-flex items-center space-x-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-colors">
+                <i class="fas fa-sync-alt"></i>
+                <span>Refresh</span>
+            </button>
+        </div>
+    </div>
+
+    <!-- Package Management Controls -->
+    <div class="card p-6 mb-6">
+        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+            <!-- Search -->
+            <div>
+                <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                    Search Packages
+                </label>
+                <div class="relative">
+                    <input type="text" id="packageSearch" placeholder="Search packages..." 
+                           class="w-full pl-10 pr-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                           onkeyup="filterPackages()">
+                    <i class="fas fa-search absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400"></i>
+                </div>
+            </div>
+
+            <!-- Filter by Status -->
+            <div>
+                <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                    Filter by Status
+                </label>
+                <select id="statusFilter" onchange="filterPackages()" 
+                    class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
+                    <option value="all">All Packages</option>
+                    <option value="upgradable">Upgradable Only</option>
+                    <option value="installed">Installed Only</option>
+                    <option value="auto">Auto Installed</option>
+                </select>
+            </div>
+
+            <!-- Sort Packages -->
+            <div>
+                <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                    Sort By
+                </label>
+                <select id="sortBy" onchange="sortPackages()" 
+                    class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
+                    <option value="name">Name</option>
+                    <option value="size">Size</option>
+                    <option value="version">Version</option>
+                    <option value="status">Status</option>
+                </select>
+            </div>
+
+            <!-- Batch Actions -->
+            <div>
+                <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                    Quick Actions
+                </label>
+                <select id="batchAction" onchange="executeBatchAction()" 
+                    class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
+                    <option value="">Select Action...</option>
+                    <option value="update">Update Package List</option>
+                    <option value="upgrade">Upgrade All Packages</option>
+                    <option value="autoremove">Remove Unused Packages</option>
+                    <option value="clean">Clean Package Cache</option>
+                </select>
+            </div>
+        </div>
+
+        <!-- Action Buttons -->
+        <div class="flex flex-wrap gap-3 mt-4">
+            <button onclick="updatePackageList()" 
+                class="inline-flex items-center space-x-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-colors">
+                <i class="fas fa-sync"></i>
+                <span>Update Lists</span>
+            </button>
+            
+            <button onclick="upgradeAllPackages()" 
+                class="inline-flex items-center space-x-2 px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded-lg transition-colors">
+                <i class="fas fa-arrow-up"></i>
+                <span>Upgrade All</span>
+            </button>
+            
+            <button onclick="showInstallModal()" 
+                class="inline-flex items-center space-x-2 px-4 py-2 bg-purple-600 hover:bg-purple-700 text-white rounded-lg transition-colors">
+                <i class="fas fa-download"></i>
+                <span>Install Package</span>
+            </button>
+            
+            <button onclick="cleanPackageCache()" 
+                class="inline-flex items-center space-x-2 px-4 py-2 bg-yellow-600 hover:bg-yellow-700 text-white rounded-lg transition-colors">
+                <i class="fas fa-broom"></i>
+                <span>Clean Cache</span>
+            </button>
+            
+            <button onclick="autoRemovePackages()" 
+                class="inline-flex items-center space-x-2 px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded-lg transition-colors">
+                <i class="fas fa-trash"></i>
+                <span>Auto Remove</span>
+            </button>
+        </div>
+    </div>
+
+<!-- Install Package Modal -->
+<div id="installModal" class="fixed inset-0 bg-black bg-opacity-50 hidden items-center justify-center z-50 p-4">
+    <div class="bg-white dark:bg-gray-800 rounded-lg w-full max-w-2xl">
+        <div class="p-6 border-b border-gray-200 dark:border-gray-700">
+            <h3 class="text-lg font-semibold text-gray-900 dark:text-white">Install Package</h3>
+        </div>
+        
+        <div class="p-6">
+            <form id="installForm">
+                <div class="space-y-4">
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                            Package Name *
+                        </label>
+                        <input type="text" id="packageName" required
+                               class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                               placeholder="e.g., nginx, docker.io, python3">
+                        <p class="text-xs text-gray-500 dark:text-gray-400 mt-1">Enter one or more package names separated by spaces</p>
+                    </div>
+                    
+                    <div class="grid grid-cols-2 gap-4">
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                                Version (Optional)
+                            </label>
+                            <input type="text" id="packageVersion"
+                                   class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                                   placeholder="e.g., 1.18.0">
+                        </div>
+                        
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                                Installation Options
+                            </label>
+                            <select id="installOptions"
+                                    class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
+                                <option value="install">Install Only</option>
+                                <option value="reinstall">Reinstall if exists</option>
+                                <option value="upgrade">Upgrade if exists</option>
+                            </select>
+                        </div>
+                    </div>
+                    
+                    <div class="flex items-center">
+                        <input type="checkbox" id="skipRecommends" 
+                               class="w-4 h-4 text-blue-600 bg-gray-100 border-gray-300 rounded focus:ring-blue-500 dark:focus:ring-blue-600 dark:ring-offset-gray-800 focus:ring-2 dark:bg-gray-700 dark:border-gray-600">
+                        <label for="skipRecommends" class="ml-2 text-sm text-gray-700 dark:text-gray-300">
+                            Skip recommended packages
+                        </label>
+                    </div>
+                    
+                    <div class="flex items-center">
+                        <input type="checkbox" id="noUpgrade" 
+                               class="w-4 h-4 text-blue-600 bg-gray-100 border-gray-300 rounded focus:ring-blue-500 dark:focus:ring-blue-600 dark:ring-offset-gray-800 focus:ring-2 dark:bg-gray-700 dark:border-gray-600">
+                        <label for="noUpgrade" class="ml-2 text-sm text-gray-700 dark:text-gray-300">
+                            Do not upgrade existing packages
+                        </label>
+                    </div>
+                </div>
+            </form>
+            
+            <!-- Installation Progress -->
+            <div id="installProgress" class="hidden mt-6">
+                <div class="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-2 mb-2">
+                    <div id="installProgressBar" class="bg-blue-600 h-2 rounded-full transition-all duration-300" style="width: 0%"></div>
+                </div>
+                <div class="text-sm text-gray-600 dark:text-gray-400 text-center">
+                    <span id="installStatus">Installing packages...</span>
+                </div>
+            </div>
+        </div>
+        
+        <div class="p-6 border-t border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-700 rounded-b-lg">
+            <div class="flex space-x-3">
+                <button onclick="hideInstallModal()" 
+                    class="flex-1 px-4 py-2 border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-600 transition-colors">
+                    Cancel
+                </button>
+                <button onclick="installPackage()" 
+                    class="flex-1 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-colors">
+                    Install Package
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Package Info Modal -->
+<div id="packageInfoModal" class="fixed inset-0 bg-black bg-opacity-50 hidden items-center justify-center z-50 p-4">
+    <div class="bg-white dark:bg-gray-800 rounded-lg w-full max-w-4xl max-h-[90vh] overflow-hidden">
+        <div class="p-6 border-b border-gray-200 dark:border-gray-700">
+            <div class="flex items-center justify-between">
+                <h3 class="text-lg font-semibold text-gray-900 dark:text-white" id="packageInfoTitle">Package Information</h3>
+                <button onclick="hidePackageInfoModal()" class="p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg">
+                    <i class="fas fa-times text-gray-500"></i>
+                </button>
+            </div>
+        </div>
+        
+        <div class="p-6 overflow-y-auto">
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <!-- Basic Info -->
+                <div class="space-y-4">
+                    <h4 class="font-medium text-gray-900 dark:text-white">Basic Information</h4>
+                    <div class="space-y-3">
+                        <div class="flex justify-between">
+                            <span class="text-gray-600 dark:text-gray-400">Package:</span>
+                            <span class="font-mono" id="infoName">-</span>
+                        </div>
+                        <div class="flex justify-between">
+                            <span class="text-gray-600 dark:text-gray-400">Version:</span>
+                            <span class="font-mono" id="infoVersion">-</span>
+                        </div>
+                        <div class="flex justify-between">
+                            <span class="text-gray-600 dark:text-gray-400">Architecture:</span>
+                            <span class="font-mono" id="infoArch">-</span>
+                        </div>
+                        <div class="flex justify-between">
+                            <span class="text-gray-600 dark:text-gray-400">Size:</span>
+                            <span class="font-mono" id="infoSize">-</span>
+                        </div>
+                        <div class="flex justify-between">
+                            <span class="text-gray-600 dark:text-gray-400">Status:</span>
+                            <span id="infoStatus">-</span>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Dependencies -->
+                <div class="space-y-4">
+                    <h4 class="font-medium text-gray-900 dark:text-white">Dependencies</h4>
+                    <div class="space-y-3">
+                        <div>
+                            <span class="text-gray-600 dark:text-gray-400 text-sm">Depends on:</span>
+                            <div id="infoDepends" class="text-sm font-mono mt-1 text-gray-900 dark:text-white"></div>
+                        </div>
+                        <div>
+                            <span class="text-gray-600 dark:text-gray-400 text-sm">Required by:</span>
+                            <div id="infoRequiredBy" class="text-sm font-mono mt-1 text-gray-900 dark:text-white"></div>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Description -->
+                <div class="md:col-span-2 space-y-4">
+                    <h4 class="font-medium text-gray-900 dark:text-white">Description</h4>
+                    <p id="infoDescription" class="text-gray-700 dark:text-gray-300"></p>
+                </div>
+            </div>
+        </div>
+        
+        <div class="p-6 border-t border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-700 rounded-b-lg">
+            <div class="flex space-x-3">
+                <button onclick="visitPackageWebsite()" 
+                    class="flex-1 px-4 py-2 border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-600 transition-colors">
+                    <i class="fas fa-external-link-alt mr-2"></i>Website
+                </button>
+                <button onclick="viewPackageFiles()" 
+                    class="flex-1 px-4 py-2 border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-600 transition-colors">
+                    <i class="fas fa-folder mr-2"></i>View Files
+                </button>
+                <button onclick="copyPackageInfo()" 
+                    class="flex-1 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-colors">
+                    <i class="fas fa-copy mr-2"></i>Copy Info
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Toast Notification -->
+<div id="toast" class="fixed top-4 right-4 z-50 transform transition-transform duration-300 translate-x-full">
+    <div class="bg-gray-800 text-white px-6 py-4 rounded-lg shadow-lg max-w-sm">
+        <div class="flex items-center space-x-3">
+            <i id="toastIcon" class="fas fa-info-circle text-blue-400"></i>
+            <div class="flex-1">
+                <div class="font-semibold" id="toastTitle">Notification</div>
+                <div class="text-sm text-gray-300" id="toastMessage">Operation completed</div>
+            </div>
+            <button onclick="hideToast()" class="text-gray-400 hover:text-white">
+                <i class="fas fa-times"></i>
+            </button>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    let selectedPackages = new Set();
+    let currentPackage = null;
+
+    // Initialize when page loads
+    document.addEventListener('DOMContentLoaded', function() {
+        updatePackageStats();
+        updateLastUpdated();
+    });
+
+    function updatePackageStats() {
+        const packages = document.querySelectorAll('.package-row');
+        const totalPackages = packages.length;
+        const upgradablePackages = Math.floor(totalPackages * 0.15); // Simulated
+        const securityUpdates = Math.floor(totalPackages * 0.05); // Simulated
+        const autoPackages = Math.floor(totalPackages * 0.3); // Simulated
+        
+        document.getElementById('totalPackages').textContent = totalPackages;
+        document.getElementById('upgradablePackages').textContent = upgradablePackages;
+        document.getElementById('securityUpdates').textContent = securityUpdates;
+        document.getElementById('autoPackages').textContent = autoPackages;
+        document.getElementById('packagesCount').textContent = `${totalPackages} packages`;
+        document.getElementById('displayedPackages').textContent = `${totalPackages} packages`;
+    }
+
+    function updateLastUpdated() {
+        const now = new Date();
+        document.getElementById('lastUpdated').textContent = now.toLocaleTimeString();
+    }
+
+    function refreshPackages() {
+        showToast('Refreshing...', 'Package list is being updated', 'info');
+        setTimeout(() => {
+            window.location.reload();
+        }, 1000);
+    }
+
+    function filterPackages() {
+        const searchTerm = document.getElementById('packageSearch').value.toLowerCase();
+        const statusFilter = document.getElementById('statusFilter').value;
+        const packages = document.querySelectorAll('.package-row');
+        
+        let visibleCount = 0;
+        
+        packages.forEach(pkg => {
+            const name = pkg.querySelector('.package-name').textContent.toLowerCase();
+            const status = pkg.querySelector('span').textContent.toLowerCase();
+            
+            const matchesSearch = !searchTerm || name.includes(searchTerm);
+            const matchesStatus = statusFilter === 'all' || 
+                                 (statusFilter === 'upgradable' && status.includes('upgradable')) ||
+                                 (statusFilter === 'installed' && status.includes('installed')) ||
+                                 (statusFilter === 'auto' && status.includes('auto'));
+            
+            if (matchesSearch && matchesStatus) {
+                pkg.style.display = '';
+                visibleCount++;
+            } else {
+                pkg.style.display = 'none';
+            }
+        });
+        
+        document.getElementById('displayedPackages').textContent = `${visibleCount} packages`;
+    }
+
+    function sortPackages() {
+        const sortBy = document.getElementById('sortBy').value;
+        showToast('Sorting', `Packages sorted by ${sortBy}`, 'info');
+        // Actual sorting would be implemented here
+    }
+
+    function toggleSelectAll() {
+        const selectAll = document.getElementById('selectAll').checked;
+        const checkboxes = document.querySelectorAll('.package-checkbox');
+        
+        checkboxes.forEach(checkbox => {
+            checkbox.checked = selectAll;
+        });
+        
+        updateSelection();
+    }
+
+    function updateSelection() {
+        const checkboxes = document.querySelectorAll('.package-checkbox:checked');
+        selectedPackages = new Set(Array.from(checkboxes).map(cb => cb.closest('tr').querySelector('.package-name').textContent));
+        
+        const selectedCount = selectedPackages.size;
+        document.getElementById('selectedCount').textContent = `${selectedCount} selected`;
+        document.getElementById('selectedCountText').textContent = `${selectedCount} package${selectedCount !== 1 ? 's' : ''} selected`;
+        
+        if (selectedCount > 0) {
+            document.getElementById('selectedActions').classList.remove('hidden');
+            document.getElementById('selectedCount').classList.remove('hidden');
+        } else {
+            document.getElementById('selectedActions').classList.add('hidden');
+            document.getElementById('selectedCount').classList.add('hidden');
+        }
+    }
+
+    function clearSelection() {
+        selectedPackages.clear();
+        document.querySelectorAll('.package-checkbox').forEach(cb => cb.checked = false);
+        document.getElementById('selectAll').checked = false;
+        updateSelection();
+    }
+
+    function showInstallModal() {
+        document.getElementById('installModal').classList.remove('hidden');
+        document.getElementById('installForm').reset();
+        document.getElementById('installProgress').classList.add('hidden');
+    }
+
+    function hideInstallModal() {
+        document.getElementById('installModal').classList.add('hidden');
+    }
+
+    function installPackage() {
+        const packageName = document.getElementById('packageName').value.trim();
+        const version = document.getElementById('packageVersion').value.trim();
+        const options = document.getElementById('installOptions').value;
+        const skipRecommends = document.getElementById('skipRecommends').checked;
+        const noUpgrade = document.getElementById('noUpgrade').checked;
+        
+        if (!packageName) {
+            showToast('Error', 'Please enter a package name', 'error');
+            return;
+        }
+        
+        // Show progress
+        document.getElementById('installProgress').classList.remove('hidden');
+        document.getElementById('installProgressBar').style.width = '0%';
+        document.getElementById('installStatus').textContent = 'Installing packages...';
+        
+        // Simulate installation progress
+        let progress = 0;
+        const interval = setInterval(() => {
+            progress += Math.random() * 15;
+            if (progress >= 100) {
+                progress = 100;
+                clearInterval(interval);
+                
+                document.getElementById('installStatus').textContent = 'Installation complete!';
+                showToast('Success', `Package ${packageName} installed successfully`, 'success');
+                
+                setTimeout(() => {
+                    hideInstallModal();
+                    refreshPackages();
+                }, 1000);
+            }
+            document.getElementById('installProgressBar').style.width = `${progress}%`;
+        }, 200);
+    }
+
+    function showPackageInfo(packageName) {
+        currentPackage = packageName;
+        document.getElementById('packageInfoTitle').textContent = `Package: ${packageName}`;
+        
+        // Simulate package information
+        document.getElementById('infoName').textContent = packageName;
+        document.getElementById('infoVersion').textContent = '1.0.0';
+        document.getElementById('infoArch').textContent = 'amd64';
+        document.getElementById('infoSize').textContent = '15.2 MB';
+        document.getElementById('infoStatus').innerHTML = '<span class="px-2 py-1 text-xs bg-green-100 text-green-800 rounded">Installed</span>';
+        document.getElementById('infoDepends').textContent = 'libc6 (>= 2.14), zlib1g (>= 1:1.2.0)';
+        document.getElementById('infoRequiredBy').textContent = 'nginx-common, web-server';
+        document.getElementById('infoDescription').textContent = 'This is a sample package description for demonstration purposes. It provides essential functionality for the system.';
+        
+        document.getElementById('packageInfoModal').classList.remove('hidden');
+    }
+
+    function hidePackageInfoModal() {
+        document.getElementById('packageInfoModal').classList.add('hidden');
+        currentPackage = null;
+    }
+
+    function upgradePackage(packageName) {
+        showToast('Upgrading...', `Upgrading package ${packageName}`, 'info');
+        
+        setTimeout(() => {
+            logActivity(`Upgraded package: ${packageName}`);
+            showToast('Success', `Package ${packageName} upgraded successfully`, 'success');
+            refreshPackages();
+        }, 2000);
+    }
+
+    function reinstallPackage(packageName) {
+        showToast('Reinstalling...', `Reinstalling package ${packageName}`, 'info');
+        
+        setTimeout(() => {
+            logActivity(`Reinstalled package: ${packageName}`);
+            showToast('Success', `Package ${packageName} reinstalled successfully`, 'success');
+        }, 1500);
+    }
+
+    function removePackage(packageName) {
+        if (!confirm(`Are you sure you want to remove package ${packageName}?`)) {
+            return;
+        }
+        
+        showToast('Removing...', `Removing package ${packageName}`, 'info');
+        
+        setTimeout(() => {
+            logActivity(`Removed package: ${packageName}`);
+            showToast('Success', `Package ${packageName} removed successfully`, 'success');
+            refreshPackages();
+        }, 1500);
+    }
+
+    function upgradeSelected() {
+        if (selectedPackages.size === 0) {
+            showToast('Error', 'No packages selected', 'error');
+            return;
+        }
+        
+        const packageList = Array.from(selectedPackages).join(', ');
+        showToast('Upgrading...', `Upgrading ${selectedPackages.size} packages`, 'info');
+        
+        setTimeout(() => {
+            logActivity(`Upgraded packages: ${packageList}`);
+            showToast('Success', `${selectedPackages.size} packages upgraded successfully`, 'success');
+            clearSelection();
+            refreshPackages();
+        }, 3000);
+    }
+
+    function removeSelected() {
+        if (selectedPackages.size === 0) {
+            showToast('Error', 'No packages selected', 'error');
+            return;
+        }
+        
+        if (!confirm(`Are you sure you want to remove ${selectedPackages.size} packages?`)) {
+            return;
+        }
+        
+        const packageList = Array.from(selectedPackages).join(', ');
+        showToast('Removing...', `Removing ${selectedPackages.size} packages`, 'info');
+        
+        setTimeout(() => {
+            logActivity(`Removed packages: ${packageList}`);
+            showToast('Success', `${selectedPackages.size} packages removed successfully`, 'success');
+            clearSelection();
+            refreshPackages();
+        }, 3000);
+    }
+
+    function updatePackageList() {
+        showToast('Updating...', 'Updating package lists from repositories', 'info');
+        
+        setTimeout(() => {
+            logActivity('Updated package lists');
+            showToast('Success', 'Package lists updated successfully', 'success');
+            updateLastUpdated();
+        }, 2000);
+    }
+
+    function upgradeAllPackages() {
+        if (!confirm('Are you sure you want to upgrade all packages? This may take several minutes.')) {
+            return;
+        }
+        
+        showToast('Upgrading...', 'Upgrading all system packages', 'info');
+        
+        setTimeout(() => {
+            logActivity('Upgraded all packages');
+            showToast('Success', 'All packages upgraded successfully', 'success');
+            refreshPackages();
+        }, 4000);
+    }
+
+    function cleanPackageCache() {
+        showToast('Cleaning...', 'Cleaning package cache', 'info');
+        
+        setTimeout(() => {
+            logActivity('Cleaned package cache');
+            showToast('Success', 'Package cache cleaned successfully', 'success');
+        }, 1500);
+    }
+
+    function autoRemovePackages() {
+        showToast('Cleaning...', 'Removing unused packages', 'info');
+        
+        setTimeout(() => {
+            logActivity('Auto-removed unused packages');
+            showToast('Success', 'Unused packages removed successfully', 'success');
+            refreshPackages();
+        }, 2000);
+    }
+
+    function executeBatchAction() {
+        const action = document.getElementById('batchAction').value;
+        document.getElementById('batchAction').value = '';
+        
+        switch(action) {
+            case 'update':
+                updatePackageList();
+                break;
+            case 'upgrade':
+                upgradeAllPackages();
+                break;
+            case 'autoremove':
+                autoRemovePackages();
+                break;
+            case 'clean':
+                cleanPackageCache();
+                break;
+        }
+    }
+
+    function loadMorePackages() {
+        showToast('Loading...', 'Loading more packages', 'info');
+        // Implementation would load more packages here
+        setTimeout(() => {
+            showToast('Success', 'More packages loaded', 'success');
+        }, 1000);
+    }
+
+    function visitPackageWebsite() {
+        showToast('Info', 'Opening package website...', 'info');
+        // Implementation would open package website
+    }
+
+    function viewPackageFiles() {
+        showToast('Info', 'Showing package files...', 'info');
+        // Implementation would show package files
+    }
+
+    function copyPackageInfo() {
+        showToast('Success', 'Package information copied to clipboard', 'success');
+        // Implementation would copy package info
+    }
+
+    function logActivity(message) {
+        // Activity logging would be implemented here
+        console.log(`Activity: ${message}`);
+    }
+
+    function showToast(title, message, type) {
+        const toast = document.getElementById('toast');
+        const toastTitle = document.getElementById('toastTitle');
+        const toastMessage = document.getElementById('toastMessage');
+        const toastIcon = document.getElementById('toastIcon');
+        
+        const icons = {
+            success: 'fa-check-circle',
+            error: 'fa-exclamation-circle',
+            info: 'fa-info-circle'
+        };
+        
+        const colors = {
+            success: 'text-green-400',
+            error: 'text-red-400',
+            info: 'text-blue-400'
+        };
+        
+        toastTitle.textContent = title;
+        toastMessage.textContent = message;
+        toastIcon.className = `fas ${icons[type]} ${colors[type]}`;
+        
+        toast.classList.remove('translate-x-full');
+        
+        setTimeout(() => {
+            hideToast();
+        }, 4000);
+    }
+
+    function hideToast() {
+        const toast = document.getElementById('toast');
+        toast.classList.add('translate-x-full');
+    }
+</script>
+
+<style>
+.package-row {
+    transition: all 0.2s ease-in-out;
+}
+
+.package-row:hover {
+    transform: translateY(-1px);
+}
+
+/* Custom scrollbar */
+#packagesContainer {
+    scrollbar-width: thin;
+    scrollbar-color: #cbd5e0 #f7fafc;
+}
+
+#packagesContainer::-webkit-scrollbar {
+    width: 6px;
+}
+
+#packagesContainer::-webkit-scrollbar-track {
+    background: #f7fafc;
+}
+
+#packagesContainer::-webkit-scrollbar-thumb {
+    background: #cbd5e0;
+    border-radius: 3px;
+}
+
+#packagesContainer::-webkit-scrollbar-thumb:hover {
+    background: #a0aec0;
+}
+
+/* Dark mode scrollbar */
+.dark #packagesContainer {
+    scrollbar-color: #4a5568 #2d3748;
+}
+
+.dark #packagesContainer::-webkit-scrollbar-track {
+    background: #2d3748;
+}
+
+.dark #packagesContainer::-webkit-scrollbar-thumb {
+    background: #4a5568;
+}
+
+.dark #packagesContainer::-webkit-scrollbar-thumb:hover {
+    background: #718096;
+}
+
+/* Selected actions bar */
+#selectedActions {
+    box-shadow: 0 -4px 6px -1px rgba(0, 0, 0, 0.1), 0 -2px 4px -1px rgba(0, 0, 0, 0.06);
+}
+
+/* Responsive design */
+@media (max-width: 768px) {
+    .table-responsive {
+        display: block;
+        overflow-x: auto;
+    }
+    
+    .card {
+        margin: 0 -1rem;
+        border-radius: 0;
+    }
+    
+    #selectedActions {
+        left: 1rem;
+        right: 1rem;
+        transform: none;
+        width: auto;
+    }
+}
+
+/* Loading animation */
+@keyframes pulse {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.5; }
+}
+
+.loading {
+    animation: pulse 2s infinite;
+}
+
+/* Status badges */
+.status-badge {
+    font-size: 0.75rem;
+    padding: 0.25rem 0.5rem;
+    border-radius: 0.375rem;
+    font-weight: 600;
+}
+
+/* Package icon colors */
+.package-icon {
+    width: 32px;
+    height: 32px;
+    border-radius: 0.5rem;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: white;
+    font-size: 0.875rem;
+}
+
+.bg-package-blue { background-color: #3b82f6; }
+.bg-package-green { background-color: #10b981; }
+.bg-package-purple { background-color: #8b5cf6; }
+.bg-package-yellow { background-color: #f59e0b; }
+</style>
+{% endblock %}

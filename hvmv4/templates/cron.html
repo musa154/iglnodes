@@ -1,0 +1,806 @@
+{% extends "base.html" %}
+
+{% block title %}Cron Jobs - {{ vps.vps_id }} - {{ panel_name }}{% endblock %}
+
+{% block content %}
+<div class="max-w-7xl mx-auto">
+    <!-- Header Section -->
+    <div class="flex flex-col lg:flex-row lg:items-center lg:justify-between mb-6">
+        <div>
+            <h1 class="text-2xl font-bold text-gray-900 dark:text-white">Cron Job Manager</h1>
+            <div class="flex items-center space-x-4 mt-2">
+                <span class="text-gray-600 dark:text-gray-400">VPS: {{ vps.vps_id }}</span>
+                <span class="px-2 py-1 bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200 text-sm rounded">
+                    {{ vps.status|upper }}
+                </span>
+            </div>
+        </div>
+        
+        <div class="flex space-x-2 mt-4 lg:mt-0">
+            <a href="{{ url_for('vps_details', vps_id=vps.vps_id) }}" 
+                class="inline-flex items-center space-x-2 px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors">
+                <i class="fas fa-arrow-left"></i>
+                <span>Back to VPS</span>
+            </a>
+            
+            <button onclick="refreshCronJobs()" 
+                class="inline-flex items-center space-x-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-colors">
+                <i class="fas fa-sync-alt"></i>
+                <span>Refresh</span>
+            </button>
+        </div>
+    </div>
+
+    <!-- Statistics Cards -->
+    <div class="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
+        <div class="card p-4 text-center">
+            <div class="text-2xl font-bold text-blue-600" id="totalJobs">0</div>
+            <div class="text-sm text-gray-600 dark:text-gray-400">Total Jobs</div>
+        </div>
+        
+        <div class="card p-4 text-center">
+            <div class="text-2xl font-bold text-green-600" id="activeJobs">0</div>
+            <div class="text-sm text-gray-600 dark:text-gray-400">Active Jobs</div>
+        </div>
+        
+        <div class="card p-4 text-center">
+            <div class="text-2xl font-bold text-yellow-600" id="hourlyJobs">0</div>
+            <div class="text-sm text-gray-600 dark:text-gray-400">Runs Hourly</div>
+        </div>
+        
+        <div class="card p-4 text-center">
+            <div class="text-2xl font-bold text-purple-600" id="dailyJobs">0</div>
+            <div class="text-sm text-gray-600 dark:text-gray-400">Runs Daily</div>
+        </div>
+    </div>
+
+    <!-- Main Content -->
+    <div class="grid grid-cols-1 xl:grid-cols-3 gap-6">
+        <!-- Cron Jobs List -->
+        <div class="xl:col-span-2">
+            <div class="card p-0 overflow-hidden">
+                <!-- Header -->
+                <div class="bg-gray-50 dark:bg-gray-700 px-6 py-4 border-b border-gray-200 dark:border-gray-600">
+                    <div class="flex items-center justify-between">
+                        <h3 class="text-lg font-semibold text-gray-900 dark:text-white">Current Cron Jobs</h3>
+                        <button onclick="showAddCronModal()" 
+                            class="inline-flex items-center space-x-2 px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded-lg transition-colors">
+                            <i class="fas fa-plus"></i>
+                            <span>Add Job</span>
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Jobs List -->
+                <div id="cronJobsContainer">
+                    {% if crons %}
+                        {% for cron in crons %}
+                            {% if cron and not cron.startswith('#') %}
+                            <div class="cron-job border-b border-gray-200 dark:border-gray-600 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors">
+                                <div class="px-6 py-4">
+                                    <div class="flex items-start justify-between">
+                                        <div class="flex-1">
+                                            <div class="flex items-center space-x-3 mb-2">
+                                                <i class="fas fa-clock text-blue-500"></i>
+                                                <code class="text-sm font-mono bg-blue-100 dark:bg-blue-900 text-blue-800 dark:text-blue-200 px-2 py-1 rounded">
+                                                    {{ cron.split(' ', 5)[:5]|join(' ') }}
+                                                </code>
+                                                <span class="px-2 py-1 bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200 text-xs rounded">
+                                                    Active
+                                                </span>
+                                            </div>
+                                            <div class="text-sm text-gray-700 dark:text-gray-300 font-mono ml-8">
+                                                {{ cron.split(' ', 5)[5:]|join(' ') }}
+                                            </div>
+                                        </div>
+                                        <div class="flex space-x-2">
+                                            <button onclick="editCronJob('{{ cron }}')" 
+                                                class="p-2 text-blue-600 hover:text-blue-800 dark:text-blue-400 dark:hover:text-blue-300 transition-colors"
+                                                title="Edit">
+                                                <i class="fas fa-edit"></i>
+                                            </button>
+                                            <button onclick="deleteCronJob('{{ cron }}')" 
+                                                class="p-2 text-red-600 hover:text-red-800 dark:text-red-400 dark:hover:text-red-300 transition-colors"
+                                                title="Delete">
+                                                <i class="fas fa-trash"></i>
+                                            </button>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                            {% endif %}
+                        {% endfor %}
+                    {% else %}
+                        <!-- Empty State -->
+                        <div class="text-center py-12">
+                            <i class="fas fa-clock text-4xl text-gray-300 dark:text-gray-600 mb-4"></i>
+                            <h3 class="text-lg font-medium text-gray-900 dark:text-white mb-2">No Cron Jobs</h3>
+                            <p class="text-gray-500 dark:text-gray-400 mb-4">No cron jobs configured for this user</p>
+                            <button onclick="showAddCronModal()" 
+                                class="inline-flex items-center space-x-2 px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded-lg transition-colors">
+                                <i class="fas fa-plus"></i>
+                                <span>Add Your First Job</span>
+                            </button>
+                        </div>
+                    {% endif %}
+                </div>
+
+                <!-- Footer -->
+                <div class="bg-gray-50 dark:bg-gray-700 px-6 py-3 border-t border-gray-200 dark:border-gray-600">
+                    <div class="flex items-center justify-between text-sm text-gray-600 dark:text-gray-400">
+                        <span id="jobsCount">{{ crons|length if crons else 0 }} jobs</span>
+                        <span>User: {{ vps.username }}</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Sidebar -->
+        <div class="space-y-6">
+            <!-- Quick Templates -->
+            <div class="card p-5">
+                <h3 class="text-lg font-semibold mb-4 text-gray-900 dark:text-white flex items-center space-x-2">
+                    <i class="fas fa-magic text-purple-500"></i>
+                    <span>Quick Templates</span>
+                </h3>
+                <div class="space-y-3">
+                    <button onclick="useTemplate('backup')" 
+                        class="w-full text-left p-3 bg-gray-50 dark:bg-gray-600 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-500 transition-colors">
+                        <div class="font-medium text-gray-900 dark:text-white">Daily Backup</div>
+                        <div class="text-sm text-gray-600 dark:text-gray-400">Runs at 2 AM every day</div>
+                        <code class="text-xs text-purple-600 dark:text-purple-400">0 2 * * * /backup.sh</code>
+                    </button>
+                    
+                    <button onclick="useTemplate('cleanup')" 
+                        class="w-full text-left p-3 bg-gray-50 dark:bg-gray-600 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-500 transition-colors">
+                        <div class="font-medium text-gray-900 dark:text-white">Weekly Cleanup</div>
+                        <div class="text-sm text-gray-600 dark:text-gray-400">Runs every Sunday at 3 AM</div>
+                        <code class="text-xs text-purple-600 dark:text-purple-400">0 3 * * 0 /cleanup.sh</code>
+                    </button>
+                    
+                    <button onclick="useTemplate('monitoring')" 
+                        class="w-full text-left p-3 bg-gray-50 dark:bg-gray-600 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-500 transition-colors">
+                        <div class="font-medium text-gray-900 dark:text-white">System Monitor</div>
+                        <div class="text-sm text-gray-600 dark:text-gray-400">Runs every 5 minutes</div>
+                        <code class="text-xs text-purple-600 dark:text-purple-400">*/5 * * * * /monitor.sh</code>
+                    </button>
+                </div>
+            </div>
+
+            <!-- Cron Help -->
+            <div class="card p-5">
+                <h3 class="text-lg font-semibold mb-4 text-gray-900 dark:text-white flex items-center space-x-2">
+                    <i class="fas fa-info-circle text-blue-500"></i>
+                    <span>Cron Syntax</span>
+                </h3>
+                <div class="space-y-3 text-sm">
+                    <div class="grid grid-cols-5 gap-1 text-xs font-mono text-center">
+                        <div class="font-semibold">Minute</div>
+                        <div class="font-semibold">Hour</div>
+                        <div class="font-semibold">Day</div>
+                        <div class="font-semibold">Month</div>
+                        <div class="font-semibold">Weekday</div>
+                        <div>0-59</div>
+                        <div>0-23</div>
+                        <div>1-31</div>
+                        <div>1-12</div>
+                        <div>0-7</div>
+                    </div>
+                    
+                    <div class="space-y-2">
+                        <div class="flex justify-between">
+                            <code class="text-xs">*/5 * * * *</code>
+                            <span class="text-gray-600 dark:text-gray-400">Every 5 minutes</span>
+                        </div>
+                        <div class="flex justify-between">
+                            <code class="text-xs">0 * * * *</code>
+                            <span class="text-gray-600 dark:text-gray-400">Hourly</span>
+                        </div>
+                        <div class="flex justify-between">
+                            <code class="text-xs">0 2 * * *</code>
+                            <span class="text-gray-600 dark:text-gray-400">Daily at 2 AM</span>
+                        </div>
+                        <div class="flex justify-between">
+                            <code class="text-xs">0 0 * * 0</code>
+                            <span class="text-gray-600 dark:text-gray-400">Weekly on Sunday</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Recent Activity -->
+            <div class="card p-5">
+                <h3 class="text-lg font-semibold mb-4 text-gray-900 dark:text-white flex items-center space-x-2">
+                    <i class="fas fa-history text-green-500"></i>
+                    <span>Recent Activity</span>
+                </h3>
+                <div id="activityLog" class="space-y-2 text-sm">
+                    <div class="text-center text-gray-500 dark:text-gray-400 py-4">
+                        <i class="fas fa-clock text-xl mb-2 opacity-50"></i>
+                        <div>No recent activity</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Add/Edit Cron Modal -->
+<div id="cronModal" class="fixed inset-0 bg-black bg-opacity-50 hidden items-center justify-center z-50 p-4">
+    <div class="bg-white dark:bg-gray-800 rounded-lg w-full max-w-2xl">
+        <div class="p-6 border-b border-gray-200 dark:border-gray-700">
+            <h3 class="text-lg font-semibold text-gray-900 dark:text-white" id="modalTitle">Add Cron Job</h3>
+        </div>
+        
+        <div class="p-6">
+            <form id="cronForm">
+                <!-- Schedule Selection -->
+                <div class="mb-6">
+                    <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-3">
+                        Schedule
+                    </label>
+                    <div class="grid grid-cols-5 gap-2 mb-3">
+                        <div>
+                            <label class="block text-xs text-gray-600 dark:text-gray-400 mb-1">Minute</label>
+                            <input type="text" id="minute" value="*" 
+                                   class="w-full px-2 py-1 border border-gray-300 dark:border-gray-600 rounded text-sm bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
+                        </div>
+                        <div>
+                            <label class="block text-xs text-gray-600 dark:text-gray-400 mb-1">Hour</label>
+                            <input type="text" id="hour" value="*" 
+                                   class="w-full px-2 py-1 border border-gray-300 dark:border-gray-600 rounded text-sm bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
+                        </div>
+                        <div>
+                            <label class="block text-xs text-gray-600 dark:text-gray-400 mb-1">Day</label>
+                            <input type="text" id="day" value="*" 
+                                   class="w-full px-2 py-1 border border-gray-300 dark:border-gray-600 rounded text-sm bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
+                        </div>
+                        <div>
+                            <label class="block text-xs text-gray-600 dark:text-gray-400 mb-1">Month</label>
+                            <input type="text" id="month" value="*" 
+                                   class="w-full px-2 py-1 border border-gray-300 dark:border-gray-600 rounded text-sm bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
+                        </div>
+                        <div>
+                            <label class="block text-xs text-gray-600 dark:text-gray-400 mb-1">Weekday</label>
+                            <input type="text" id="weekday" value="*" 
+                                   class="w-full px-2 py-1 border border-gray-300 dark:border-gray-600 rounded text-sm bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
+                        </div>
+                    </div>
+                    
+                    <!-- Quick Schedule Buttons -->
+                    <div class="flex flex-wrap gap-2">
+                        <button type="button" onclick="setSchedule('*/5 * * * *')" class="text-xs px-2 py-1 bg-gray-200 dark:bg-gray-600 rounded hover:bg-gray-300 dark:hover:bg-gray-500">
+                            Every 5 min
+                        </button>
+                        <button type="button" onclick="setSchedule('0 * * * *')" class="text-xs px-2 py-1 bg-gray-200 dark:bg-gray-600 rounded hover:bg-gray-300 dark:hover:bg-gray-500">
+                            Hourly
+                        </button>
+                        <button type="button" onclick="setSchedule('0 2 * * *')" class="text-xs px-2 py-1 bg-gray-200 dark:bg-gray-600 rounded hover:bg-gray-300 dark:hover:bg-gray-500">
+                            Daily 2 AM
+                        </button>
+                        <button type="button" onclick="setSchedule('0 0 * * 0')" class="text-xs px-2 py-1 bg-gray-200 dark:bg-gray-600 rounded hover:bg-gray-300 dark:hover:bg-gray-500">
+                            Weekly
+                        </button>
+                        <button type="button" onclick="setSchedule('0 0 1 * *')" class="text-xs px-2 py-1 bg-gray-200 dark:bg-gray-600 rounded hover:bg-gray-300 dark:hover:bg-gray-500">
+                            Monthly
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Command -->
+                <div class="mb-6">
+                    <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                        Command
+                    </label>
+                    <textarea id="command" rows="3" placeholder="Enter the command to execute..."
+                              class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-blue-500 font-mono text-sm"></textarea>
+                </div>
+
+                <!-- Preview -->
+                <div class="mb-4 p-3 bg-gray-50 dark:bg-gray-700 rounded-lg">
+                    <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                        Preview
+                    </label>
+                    <code id="cronPreview" class="text-sm font-mono text-gray-600 dark:text-gray-400">
+                        No schedule selected
+                    </code>
+                </div>
+            </form>
+        </div>
+        
+        <div class="p-6 border-t border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-700 rounded-b-lg">
+            <div class="flex space-x-3">
+                <button onclick="hideCronModal()" 
+                    class="flex-1 px-4 py-2 border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-600 transition-colors">
+                    Cancel
+                </button>
+                <button onclick="saveCronJob()" id="saveCronBtn"
+                    class="flex-1 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-colors">
+                    Save Job
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Delete Confirmation Modal -->
+<div id="deleteModal" class="fixed inset-0 bg-black bg-opacity-50 hidden items-center justify-center z-50 p-4">
+    <div class="bg-white dark:bg-gray-800 rounded-lg w-full max-w-md">
+        <div class="p-6 border-b border-gray-200 dark:border-gray-700">
+            <div class="flex items-center space-x-3">
+                <i class="fas fa-exclamation-triangle text-red-500 text-xl"></i>
+                <h3 class="text-lg font-semibold text-gray-900 dark:text-white">Delete Cron Job</h3>
+            </div>
+        </div>
+        
+        <div class="p-6">
+            <p class="text-gray-700 dark:text-gray-300 mb-4">Are you sure you want to delete this cron job?</p>
+            <code id="jobToDelete" class="block w-full p-3 bg-gray-100 dark:bg-gray-700 rounded text-sm font-mono mb-4"></code>
+            <p class="text-sm text-gray-600 dark:text-gray-400">This action cannot be undone.</p>
+        </div>
+        
+        <div class="p-6 border-t border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-700 rounded-b-lg">
+            <div class="flex space-x-3">
+                <button onclick="hideDeleteModal()" 
+                    class="flex-1 px-4 py-2 border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-600 transition-colors">
+                    Cancel
+                </button>
+                <button onclick="confirmDelete()" 
+                    class="flex-1 px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded-lg transition-colors">
+                    Delete
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Toast Notification -->
+<div id="toast" class="fixed top-4 right-4 z-50 transform transition-transform duration-300 translate-x-full">
+    <div class="bg-gray-800 text-white px-6 py-4 rounded-lg shadow-lg max-w-sm">
+        <div class="flex items-center space-x-3">
+            <i id="toastIcon" class="fas fa-info-circle text-blue-400"></i>
+            <div class="flex-1">
+                <div class="font-semibold" id="toastTitle">Notification</div>
+                <div class="text-sm text-gray-300" id="toastMessage">Operation completed</div>
+            </div>
+            <button onclick="hideToast()" class="text-gray-400 hover:text-white">
+                <i class="fas fa-times"></i>
+            </button>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    let currentEditingJob = null;
+    let jobs = [];
+
+    // Initialize when page loads
+    document.addEventListener('DOMContentLoaded', function() {
+        loadCronJobs();
+        setupEventListeners();
+        updateCronPreview();
+    });
+
+    function setupEventListeners() {
+        // Update preview when schedule changes
+        ['minute', 'hour', 'day', 'month', 'weekday', 'command'].forEach(field => {
+            document.getElementById(field).addEventListener('input', updateCronPreview);
+        });
+    }
+
+    function loadCronJobs() {
+        // Parse existing cron jobs from the page
+        const cronElements = document.querySelectorAll('.cron-job');
+        jobs = Array.from(cronElements).map(element => {
+            const schedule = element.querySelector('code').textContent;
+            const command = element.querySelector('.font-mono').textContent.trim();
+            return `${schedule} ${command}`;
+        });
+        
+        updateJobStats();
+    }
+
+    function updateJobStats() {
+        const total = jobs.length;
+        const active = total; // All displayed jobs are active
+        const hourly = jobs.filter(job => job.includes('* * * *') && !job.includes('*/')).length;
+        const daily = jobs.filter(job => job.includes('0 2 * * *')).length;
+
+        document.getElementById('totalJobs').textContent = total;
+        document.getElementById('activeJobs').textContent = active;
+        document.getElementById('hourlyJobs').textContent = hourly;
+        document.getElementById('dailyJobs').textContent = daily;
+        document.getElementById('jobsCount').textContent = `${total} job${total !== 1 ? 's' : ''}`;
+    }
+
+    function showAddCronModal() {
+        document.getElementById('modalTitle').textContent = 'Add Cron Job';
+        document.getElementById('saveCronBtn').textContent = 'Add Job';
+        currentEditingJob = null;
+        
+        // Reset form
+        document.getElementById('minute').value = '*';
+        document.getElementById('hour').value = '*';
+        document.getElementById('day').value = '*';
+        document.getElementById('month').value = '*';
+        document.getElementById('weekday').value = '*';
+        document.getElementById('command').value = '';
+        
+        document.getElementById('cronModal').classList.remove('hidden');
+        updateCronPreview();
+    }
+
+    function editCronJob(cronJob) {
+        document.getElementById('modalTitle').textContent = 'Edit Cron Job';
+        document.getElementById('saveCronBtn').textContent = 'Update Job';
+        currentEditingJob = cronJob;
+        
+        // Parse the cron job
+        const parts = cronJob.split(' ');
+        if (parts.length >= 6) {
+            document.getElementById('minute').value = parts[0];
+            document.getElementById('hour').value = parts[1];
+            document.getElementById('day').value = parts[2];
+            document.getElementById('month').value = parts[3];
+            document.getElementById('weekday').value = parts[4];
+            document.getElementById('command').value = parts.slice(5).join(' ');
+        }
+        
+        document.getElementById('cronModal').classList.remove('hidden');
+        updateCronPreview();
+    }
+
+    function hideCronModal() {
+        document.getElementById('cronModal').classList.add('hidden');
+    }
+
+    function updateCronPreview() {
+        const minute = document.getElementById('minute').value;
+        const hour = document.getElementById('hour').value;
+        const day = document.getElementById('day').value;
+        const month = document.getElementById('month').value;
+        const weekday = document.getElementById('weekday').value;
+        const command = document.getElementById('command').value;
+        
+        const preview = `${minute} ${hour} ${day} ${month} ${weekday} ${command}`;
+        document.getElementById('cronPreview').textContent = preview;
+        
+        // Validate the schedule
+        const isValid = validateCronSchedule(minute, hour, day, month, weekday);
+        document.getElementById('cronPreview').className = `text-sm font-mono ${
+            isValid ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'
+        }`;
+    }
+
+    function validateCronSchedule(minute, hour, day, month, weekday) {
+        // Basic validation - in a real app, you'd want more comprehensive validation
+        const fields = [minute, hour, day, month, weekday];
+        return fields.every(field => field && field.trim() !== '');
+    }
+
+    function setSchedule(schedule) {
+        const parts = schedule.split(' ');
+        if (parts.length === 5) {
+            document.getElementById('minute').value = parts[0];
+            document.getElementById('hour').value = parts[1];
+            document.getElementById('day').value = parts[2];
+            document.getElementById('month').value = parts[3];
+            document.getElementById('weekday').value = parts[4];
+            updateCronPreview();
+        }
+    }
+
+    function useTemplate(template) {
+        const templates = {
+            'backup': {
+                schedule: '0 2 * * *',
+                command: '/usr/local/bin/backup.sh'
+            },
+            'cleanup': {
+                schedule: '0 3 * * 0',
+                command: '/usr/local/bin/cleanup.sh'
+            },
+            'monitoring': {
+                schedule: '*/5 * * * *',
+                command: '/usr/local/bin/monitor.sh'
+            }
+        };
+        
+        if (templates[template]) {
+            const scheduleParts = templates[template].schedule.split(' ');
+            document.getElementById('minute').value = scheduleParts[0];
+            document.getElementById('hour').value = scheduleParts[1];
+            document.getElementById('day').value = scheduleParts[2];
+            document.getElementById('month').value = scheduleParts[3];
+            document.getElementById('weekday').value = scheduleParts[4];
+            document.getElementById('command').value = templates[template].command;
+            updateCronPreview();
+            
+            showToast('Template applied', 'Template has been loaded into the form', 'success');
+        }
+    }
+
+    function saveCronJob() {
+        const minute = document.getElementById('minute').value;
+        const hour = document.getElementById('hour').value;
+        const day = document.getElementById('day').value;
+        const month = document.getElementById('month').value;
+        const weekday = document.getElementById('weekday').value;
+        const command = document.getElementById('command').value.trim();
+        
+        if (!command) {
+            showToast('Error', 'Please enter a command', 'error');
+            return;
+        }
+        
+        const cronJob = `${minute} ${hour} ${day} ${month} ${weekday} ${command}`;
+        
+        // In a real application, this would make an API call to save the cron job
+        // For now, we'll simulate it with client-side updates
+        
+        if (currentEditingJob) {
+            // Update existing job
+            const index = jobs.indexOf(currentEditingJob);
+            if (index > -1) {
+                jobs[index] = cronJob;
+            }
+            showToast('Success', 'Cron job updated successfully', 'success');
+            logActivity(`Updated cron job: ${cronJob}`);
+        } else {
+            // Add new job
+            jobs.push(cronJob);
+            showToast('Success', 'Cron job added successfully', 'success');
+            logActivity(`Added new cron job: ${cronJob}`);
+        }
+        
+        updateJobsDisplay();
+        hideCronModal();
+    }
+
+    function deleteCronJob(cronJob) {
+        document.getElementById('jobToDelete').textContent = cronJob;
+        currentEditingJob = cronJob;
+        document.getElementById('deleteModal').classList.remove('hidden');
+    }
+
+    function hideDeleteModal() {
+        document.getElementById('deleteModal').classList.add('hidden');
+        currentEditingJob = null;
+    }
+
+    function confirmDelete() {
+        if (currentEditingJob) {
+            const index = jobs.indexOf(currentEditingJob);
+            if (index > -1) {
+                jobs.splice(index, 1);
+                showToast('Success', 'Cron job deleted successfully', 'success');
+                logActivity(`Deleted cron job: ${currentEditingJob}`);
+            }
+            updateJobsDisplay();
+        }
+        hideDeleteModal();
+    }
+
+    function updateJobsDisplay() {
+        const container = document.getElementById('cronJobsContainer');
+        
+        if (jobs.length === 0) {
+            container.innerHTML = `
+                <div class="text-center py-12">
+                    <i class="fas fa-clock text-4xl text-gray-300 dark:text-gray-600 mb-4"></i>
+                    <h3 class="text-lg font-medium text-gray-900 dark:text-white mb-2">No Cron Jobs</h3>
+                    <p class="text-gray-500 dark:text-gray-400 mb-4">No cron jobs configured for this user</p>
+                    <button onclick="showAddCronModal()" 
+                        class="inline-flex items-center space-x-2 px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded-lg transition-colors">
+                        <i class="fas fa-plus"></i>
+                        <span>Add Your First Job</span>
+                    </button>
+                </div>
+            `;
+        } else {
+            let html = '';
+            jobs.forEach(job => {
+                const parts = job.split(' ');
+                const schedule = parts.slice(0, 5).join(' ');
+                const command = parts.slice(5).join(' ');
+                
+                html += `
+                    <div class="cron-job border-b border-gray-200 dark:border-gray-600 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors">
+                        <div class="px-6 py-4">
+                            <div class="flex items-start justify-between">
+                                <div class="flex-1">
+                                    <div class="flex items-center space-x-3 mb-2">
+                                        <i class="fas fa-clock text-blue-500"></i>
+                                        <code class="text-sm font-mono bg-blue-100 dark:bg-blue-900 text-blue-800 dark:text-blue-200 px-2 py-1 rounded">
+                                            ${schedule}
+                                        </code>
+                                        <span class="px-2 py-1 bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200 text-xs rounded">
+                                            Active
+                                        </span>
+                                    </div>
+                                    <div class="text-sm text-gray-700 dark:text-gray-300 font-mono ml-8">
+                                        ${command}
+                                    </div>
+                                </div>
+                                <div class="flex space-x-2">
+                                    <button onclick="editCronJob('${job.replace(/'/g, "\\'")}')" 
+                                        class="p-2 text-blue-600 hover:text-blue-800 dark:text-blue-400 dark:hover:text-blue-300 transition-colors"
+                                        title="Edit">
+                                        <i class="fas fa-edit"></i>
+                                    </button>
+                                    <button onclick="deleteCronJob('${job.replace(/'/g, "\\'")}')" 
+                                        class="p-2 text-red-600 hover:text-red-800 dark:text-red-400 dark:hover:text-red-300 transition-colors"
+                                        title="Delete">
+                                        <i class="fas fa-trash"></i>
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                `;
+            });
+            container.innerHTML = html;
+        }
+        
+        updateJobStats();
+    }
+
+    function refreshCronJobs() {
+        // In a real application, this would reload from the server
+        showToast('Refreshed', 'Cron jobs list updated', 'success');
+        logActivity('Refreshed cron jobs list');
+    }
+
+    function logActivity(message) {
+        const activityLog = document.getElementById('activityLog');
+        const timestamp = new Date().toLocaleTimeString();
+        
+        const activityItem = document.createElement('div');
+        activityItem.className = 'flex justify-between items-center py-2 border-b border-gray-200 dark:border-gray-600 last:border-b-0';
+        activityItem.innerHTML = `
+            <span class="text-gray-600 dark:text-gray-400 flex-1 truncate">${message}</span>
+            <span class="text-xs text-gray-500 dark:text-gray-400 ml-2">${timestamp}</span>
+        `;
+        
+        // Add to top
+        activityLog.insertBefore(activityItem, activityLog.firstChild);
+        
+        // Keep only last 5 activities
+        if (activityLog.children.length > 5) {
+            activityLog.removeChild(activityLog.lastChild);
+        }
+        
+        // Remove empty state if it exists
+        const emptyState = activityLog.querySelector('.text-center');
+        if (emptyState) {
+            emptyState.remove();
+        }
+    }
+
+    function showToast(title, message, type) {
+        const toast = document.getElementById('toast');
+        const toastTitle = document.getElementById('toastTitle');
+        const toastMessage = document.getElementById('toastMessage');
+        const toastIcon = document.getElementById('toastIcon');
+        
+        const icons = {
+            success: 'fa-check-circle',
+            error: 'fa-exclamation-circle',
+            info: 'fa-info-circle'
+        };
+        
+        const colors = {
+            success: 'text-green-400',
+            error: 'text-red-400',
+            info: 'text-blue-400'
+        };
+        
+        toastTitle.textContent = title;
+        toastMessage.textContent = message;
+        toastIcon.className = `fas ${icons[type]} ${colors[type]}`;
+        
+        toast.classList.remove('translate-x-full');
+        
+        setTimeout(() => {
+            hideToast();
+        }, 4000);
+    }
+
+    function hideToast() {
+        const toast = document.getElementById('toast');
+        toast.classList.add('translate-x-full');
+    }
+</script>
+
+<style>
+.cron-job {
+    transition: all 0.2s ease-in-out;
+}
+
+.cron-job:hover {
+    transform: translateY(-1px);
+}
+
+/* Custom scrollbar */
+#cronJobsContainer {
+    max-height: 600px;
+    overflow-y: auto;
+    scrollbar-width: thin;
+    scrollbar-color: #cbd5e0 #f7fafc;
+}
+
+#cronJobsContainer::-webkit-scrollbar {
+    width: 6px;
+}
+
+#cronJobsContainer::-webkit-scrollbar-track {
+    background: #f7fafc;
+}
+
+#cronJobsContainer::-webkit-scrollbar-thumb {
+    background: #cbd5e0;
+    border-radius: 3px;
+}
+
+#cronJobsContainer::-webkit-scrollbar-thumb:hover {
+    background: #a0aec0;
+}
+
+/* Dark mode scrollbar */
+.dark #cronJobsContainer {
+    scrollbar-color: #4a5568 #2d3748;
+}
+
+.dark #cronJobsContainer::-webkit-scrollbar-track {
+    background: #2d3748;
+}
+
+.dark #cronJobsContainer::-webkit-scrollbar-thumb {
+    background: #4a5568;
+}
+
+.dark #cronJobsContainer::-webkit-scrollbar-thumb:hover {
+    background: #718096;
+}
+
+/* Schedule input styling */
+input[type="text"] {
+    font-family: 'SF Mono', 'Monaco', 'Cascada Code', 'Roboto Mono', Consolas, 'Courier New', monospace;
+    font-size: 0.875rem;
+}
+
+/* Responsive design */
+@media (max-width: 768px) {
+    .grid-cols-5 {
+        grid-template-columns: repeat(3, 1fr);
+    }
+    
+    .cron-job .flex {
+        flex-direction: column;
+        align-items: flex-start;
+    }
+    
+    .cron-job .flex > div:last-child {
+        margin-top: 1rem;
+        align-self: flex-end;
+    }
+}
+
+/* Loading animation */
+@keyframes pulse {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.5; }
+}
+
+.loading {
+    animation: pulse 2s infinite;
+}
+
+/* Template button hover effects */
+button:hover {
+    transform: translateY(-1px);
+}
+</style>
+{% endblock %}

@@ -1,0 +1,780 @@
+{% extends "base.html" %}
+
+{% block title %}View Logs - {{ vps.vps_id }} - {{ panel_name }}{% endblock %}
+
+{% block content %}
+<div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
+    <!-- Header Section -->
+    <div class="flex flex-col lg:flex-row lg:items-center lg:justify-between mb-6 backdrop-blur-md bg-gray-900/30 rounded-xl p-6 border border-gray-700/50">
+        <div>
+            <h1 class="text-2xl font-bold text-gray-100">Log Viewer</h1>
+            <div class="flex items-center space-x-4 mt-2">
+                <span class="text-gray-400">VPS: {{ vps.vps_id }}</span>
+                <span class="px-2 py-1 bg-blue-900/50 text-blue-300 text-sm rounded-full">
+                    {{ vps.status|upper }}
+                </span>
+            </div>
+        </div>
+        
+        <div class="flex space-x-2 mt-4 lg:mt-0">
+            <a href="{{ url_for('vps_details', vps_id=vps.vps_id) }}" 
+                class="inline-flex items-center space-x-2 px-4 py-2 border border-gray-700/50 rounded-xl text-gray-300 hover:bg-gray-800/50 backdrop-blur-sm transition-all duration-300">
+                <i class="fas fa-arrow-left"></i>
+                <span>Back to VPS</span>
+            </a>
+            
+            <button onclick="refreshLogs()" 
+                class="inline-flex items-center space-x-2 px-4 py-2 bg-blue-600/80 hover:bg-blue-700/90 text-white rounded-xl transition-all duration-300 backdrop-blur-sm">
+                <i class="fas fa-sync-alt"></i>
+                <span>Refresh</span>
+            </button>
+        </div>
+    </div>
+
+    <!-- Log Controls -->
+    <div class="card p-6 mb-6 backdrop-blur-md bg-gray-900/30 rounded-xl border border-gray-700/50">
+        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+            <!-- Log File Selection -->
+            <div>
+                <label class="block text-sm font-medium text-gray-300 mb-2">
+                    Log File
+                </label>
+                <select id="logFileSelect" onchange="loadLogFile()" 
+                    class="w-full px-3 py-2 border border-gray-700/50 rounded-xl bg-gray-800/50 text-gray-100 focus:ring-2 focus:ring-blue-500/50 focus:border-blue-500/50 backdrop-blur-sm transition-all duration-300">
+                    <option value="/var/log/syslog">System Log (syslog)</option>
+                    <option value="/var/log/auth.log">Authentication Log</option>
+                    <option value="/var/log/kern.log">Kernel Log</option>
+                    <option value="/var/log/dpkg.log">Package Manager Log</option>
+                    <option value="/var/log/apache2/access.log">Apache Access Log</option>
+                    <option value="/var/log/apache2/error.log">Apache Error Log</option>
+                    <option value="/var/log/nginx/access.log">Nginx Access Log</option>
+                    <option value="/var/log/nginx/error.log">Nginx Error Log</option>
+                    <option value="/var/log/mysql/error.log">MySQL Error Log</option>
+                    <option value="/var/log/docker.log">Docker Log</option>
+                    <option value="custom">Custom Path...</option>
+                </select>
+            </div>
+
+            <!-- Custom Log Path -->
+            <div id="customPathContainer" class="hidden">
+                <label class="block text-sm font-medium text-gray-300 mb-2">
+                    Custom Log Path
+                </label>
+                <div class="flex space-x-2">
+                    <input type="text" id="customLogPath" 
+                           placeholder="/path/to/logfile.log"
+                           class="flex-1 px-3 py-2 border border-gray-700/50 rounded-xl bg-gray-800/50 text-gray-100 focus:ring-2 focus:ring-blue-500/50 focus:border-blue-500/50 backdrop-blur-sm transition-all duration-300">
+                    <button onclick="loadCustomLog()" 
+                        class="px-4 py-2 bg-green-600/80 hover:bg-green-700/90 text-white rounded-xl transition-all duration-300 backdrop-blur-sm">
+                        Load
+                    </button>
+                </div>
+            </div>
+
+            <!-- Log Level Filter -->
+            <div>
+                <label class="block text-sm font-medium text-gray-300 mb-2">
+                    Log Level
+                </label>
+                <select id="logLevelFilter" onchange="filterLogs()" 
+                    class="w-full px-3 py-2 border border-gray-700/50 rounded-xl bg-gray-800/50 text-gray-100 focus:ring-2 focus:ring-blue-500/50 focus:border-blue-500/50 backdrop-blur-sm transition-all duration-300">
+                    <option value="all">All Levels</option>
+                    <option value="emerg">Emergency</option>
+                    <option value="alert">Alert</option>
+                    <option value="crit">Critical</option>
+                    <option value="err">Error</option>
+                    <option value="warning">Warning</option>
+                    <option value="notice">Notice</option>
+                    <option value="info">Info</option>
+                    <option value="debug">Debug</option>
+                </select>
+            </div>
+
+            <!-- Lines to Show -->
+            <div>
+                <label class="block text-sm font-medium text-gray-300 mb-2">
+                    Lines to Show
+                </label>
+                <select id="linesToShow" onchange="loadLogFile()" 
+                    class="w-full px-3 py-2 border border-gray-700/50 rounded-xl bg-gray-800/50 text-gray-100 focus:ring-2 focus:ring-blue-500/50 focus:border-blue-500/50 backdrop-blur-sm transition-all duration-300">
+                    <option value="50">Last 50 lines</option>
+                    <option value="100" selected>Last 100 lines</option>
+                    <option value="500">Last 500 lines</option>
+                    <option value="1000">Last 1000 lines</option>
+                    <option value="all">All lines</option>
+                </select>
+            </div>
+        </div>
+
+        <!-- Search and Actions -->
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mt-4">
+            <!-- Search -->
+            <div>
+                <label class="block text-sm font-medium text-gray-300 mb-2">
+                    Search in Logs
+                </label>
+                <div class="relative">
+                    <input type="text" id="logSearch" placeholder="Search log entries..." 
+                           class="w-full pl-10 pr-4 py-2 border border-gray-700/50 rounded-xl bg-gray-800/50 text-gray-100 focus:ring-2 focus:ring-blue-500/50 focus:border-blue-500/50 backdrop-blur-sm transition-all duration-300"
+                           onkeyup="filterLogs()">
+                    <i class="fas fa-search absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-500"></i>
+                </div>
+            </div>
+
+            <!-- Action Buttons -->
+            <div class="flex items-end space-x-2">
+                <button onclick="clearLogs()" 
+                    class="flex-1 px-4 py-2 bg-gray-600/80 hover:bg-gray-700/90 text-white rounded-xl transition-all duration-300 backdrop-blur-sm flex items-center justify-center space-x-2">
+                    <i class="fas fa-broom"></i>
+                    <span>Clear Display</span>
+                </button>
+                
+                <button onclick="downloadLogs()" 
+                    class="flex-1 px-4 py-2 bg-green-600/80 hover:bg-green-700/90 text-white rounded-xl transition-all duration-300 backdrop-blur-sm flex items-center justify-center space-x-2">
+                    <i class="fas fa-download"></i>
+                    <span>Download</span>
+                </button>
+                
+                <button onclick="toggleAutoRefresh()" id="autoRefreshBtn"
+                    class="px-4 py-2 bg-blue-600/80 hover:bg-blue-700/90 text-white rounded-xl transition-all duration-300 backdrop-blur-sm flex items-center justify-center space-x-2">
+                    <i class="fas fa-sync-alt"></i>
+                    <span>Auto-Refresh</span>
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Log Statistics -->
+    <div class="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
+        <div class="card p-4 text-center backdrop-blur-md bg-gray-900/30 rounded-xl border border-gray-700/50">
+            <div class="text-2xl font-bold text-blue-400" id="totalLines">0</div>
+            <div class="text-sm text-gray-400">Total Lines</div>
+        </div>
+        
+        <div class="card p-4 text-center backdrop-blur-md bg-gray-900/30 rounded-xl border border-gray-700/50">
+            <div class="text-2xl font-bold text-green-400" id="infoCount">0</div>
+            <div class="text-sm text-gray-400">Info</div>
+        </div>
+        
+        <div class="card p-4 text-center backdrop-blur-md bg-gray-900/30 rounded-xl border border-gray-700/50">
+            <div class="text-2xl font-bold text-yellow-400" id="warningCount">0</div>
+            <div class="text-sm text-gray-400">Warnings</div>
+        </div>
+        
+        <div class="card p-4 text-center backdrop-blur-md bg-gray-900/30 rounded-xl border border-gray-700/50">
+            <div class="text-2xl font-bold text-red-400" id="errorCount">0</div>
+            <div class="text-sm text-gray-400">Errors</div>
+        </div>
+    </div>
+
+    <!-- Log Content -->
+    <div class="card p-0 overflow-hidden backdrop-blur-md bg-gray-900/30 rounded-xl border border-gray-700/50">
+        <!-- Log Header -->
+        <div class="bg-gray-800/50 px-6 py-3 border-b border-gray-700/50">
+            <div class="flex items-center justify-between">
+                <div class="flex items-center space-x-4">
+                    <h3 class="text-lg font-semibold text-gray-100" id="currentLogFile">
+                        System Log
+                    </h3>
+                    <span class="px-2 py-1 bg-blue-900/50 text-blue-300 text-xs rounded-full" id="logStatus">
+                        Ready
+                    </span>
+                </div>
+                <div class="flex items-center space-x-2 text-sm text-gray-400">
+                    <span id="displayedLines">0 lines displayed</span>
+                    <span>•</span>
+                    <span id="lastUpdated">Never updated</span>
+                </div>
+            </div>
+        </div>
+
+        <!-- Log Content -->
+        <div class="bg-gray-900/50 text-gray-200 font-mono text-sm">
+            <div id="logContainer" class="h-96 overflow-auto p-4">
+                <div class="text-center text-gray-400 py-8">
+                    <i class="fas fa-file-alt text-3xl mb-3"></i>
+                    <div>Select a log file to view its contents</div>
+                    <div class="text-sm mt-1">Use the controls above to load log data</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Log Footer -->
+        <div class="bg-gray-800/50 px-6 py-2 border-t border-gray-700/50">
+            <div class="flex items-center justify-between text-xs text-gray-400">
+                <div class="flex items-center space-x-4">
+                    <span>Press F5 to refresh</span>
+                    <span>•</span>
+                    <span>Use Ctrl+F to search in page</span>
+                </div>
+                <div class="flex items-center space-x-4">
+                    <button onclick="scrollToTop()" class="hover:text-gray-200 transition-all duration-300">
+                        <i class="fas fa-arrow-up mr-1"></i>Top
+                    </button>
+                    <button onclick="scrollToBottom()" class="hover:text-gray-200 transition-all duration-300">
+                        <i class="fas fa-arrow-down mr-1"></i>Bottom
+                    </button>
+                    <button onclick="toggleWrap()" id="wrapToggle" class="hover:text-gray-200 transition-all duration-300">
+                        <i class="fas fa-text-width mr-1"></i>Wrap
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Quick Actions -->
+    <div class="mt-6">
+        <h3 class="text-lg font-semibold mb-3 text-gray-100">Quick Actions</h3>
+        <div class="grid grid-cols-2 md:grid-cols-4 gap-3">
+            <button onclick="loadCommonLog('syslog')" 
+                class="p-3 bg-blue-600/80 hover:bg-blue-700/90 text-white rounded-xl flex flex-col items-center justify-center transition-all duration-300 backdrop-blur-sm">
+                <i class="fas fa-server text-xl mb-2"></i>
+                <span class="text-sm">System Log</span>
+            </button>
+            
+            <button onclick="loadCommonLog('auth')" 
+                class="p-3 bg-green-600/80 hover:bg-green-700/90 text-white rounded-xl flex flex-col items-center justify-center transition-all duration-300 backdrop-blur-sm">
+                <i class="fas fa-shield-alt text-xl mb-2"></i>
+                <span class="text-sm">Auth Log</span>
+            </button>
+            
+            <button onclick="loadCommonLog('kernel')" 
+                class="p-3 bg-purple-600/80 hover:bg-purple-700/90 text-white rounded-xl flex flex-col items-center justify-center transition-all duration-300 backdrop-blur-sm">
+                <i class="fas fa-cog text-xl mb-2"></i>
+                <span class="text-sm">Kernel Log</span>
+            </button>
+            
+            <button onclick="tailLogs()" 
+                class="p-3 bg-orange-600/80 hover:bg-orange-700/90 text-white rounded-xl flex flex-col items-center justify-center transition-all duration-300 backdrop-blur-sm">
+                <i class="fas fa-stream text-xl mb-2"></i>
+                <span class="text-sm">Tail -f</span>
+            </button>
+        </div>
+    </div>
+</div>
+
+<!-- Log Entry Detail Modal -->
+<div id="logDetailModal" class="fixed inset-0 bg-black/50 hidden items-center justify-center z-50 p-4">
+    <div class="bg-gray-900/30 backdrop-blur-md rounded-xl w-full max-w-4xl max-h-[90vh] overflow-hidden border border-gray-700/50">
+        <div class="p-6 border-b border-gray-700/50">
+            <div class="flex items-center justify-between">
+                <h3 class="text-lg font-semibold text-gray-100">Log Entry Details</h3>
+                <button onclick="hideLogDetail()" class="p-2 hover:bg-gray-800/50 rounded-lg transition-all duration-300">
+                    <i class="fas fa-times text-gray-400"></i>
+                </button>
+            </div>
+        </div>
+        
+        <div class="p-6 overflow-y-auto">
+            <div class="bg-gray-800/50 rounded-xl p-4 mb-4">
+                <pre id="logDetailContent" class="text-sm whitespace-pre-wrap font-mono text-gray-200"></pre>
+            </div>
+            
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                    <h4 class="font-medium text-gray-100 mb-2">Parsed Fields</h4>
+                    <div id="parsedFields" class="space-y-2 text-sm text-gray-300">
+                        <!-- Parsed fields will be inserted here -->
+                    </div>
+                </div>
+                
+                <div>
+                    <h4 class="font-medium text-gray-100 mb-2">Actions</h4>
+                    <div class="space-y-2">
+                        <button onclick="copyLogEntry()" 
+                            class="w-full text-left px-4 py-2 bg-blue-900/50 text-blue-300 rounded-xl hover:bg-blue-800/50 transition-all duration-300 backdrop-blur-sm">
+                            <i class="fas fa-copy mr-2"></i>Copy to Clipboard
+                        </button>
+                        <button onclick="searchSimilar()" 
+                            class="w-full text-left px-4 py-2 bg-green-900/50 text-green-300 rounded-xl hover:bg-green-800/50 transition-all duration-300 backdrop-blur-sm">
+                            <i class="fas fa-search mr-2"></i>Find Similar Entries
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Loading Overlay -->
+<div id="loadingOverlay" class="fixed inset-0 bg-black/50 hidden items-center justify-center z-50">
+    <div class="bg-gray-900/30 backdrop-blur-md rounded-xl p-6 flex items-center space-x-3 border border-gray-700/50">
+        <div class="loading-spinner"></div>
+        <span class="text-gray-300">Loading log data...</span>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    let autoRefreshInterval = null;
+    let currentLogPath = '/var/log/syslog';
+    let isWrapping = false;
+
+    // Initialize when page loads
+    document.addEventListener('DOMContentLoaded', function() {
+        const urlParams = new URLSearchParams(window.location.search);
+        const logFile = urlParams.get('log_file');
+        if (logFile) {
+            document.getElementById('logFileSelect').value = logFile;
+            currentLogPath = logFile;
+        }
+        
+        loadLogFile();
+        setupEventListeners();
+    });
+
+    function setupEventListeners() {
+        document.getElementById('logFileSelect').addEventListener('change', function() {
+            if (this.value === 'custom') {
+                document.getElementById('customPathContainer').classList.remove('hidden');
+            } else {
+                document.getElementById('customPathContainer').classList.add('hidden');
+                currentLogPath = this.value;
+                loadLogFile();
+            }
+        });
+
+        document.addEventListener('keydown', function(e) {
+            if (e.key === 'F5') {
+                e.preventDefault();
+                refreshLogs();
+            } else if (e.ctrlKey && e.key === 'f') {
+                e.preventDefault();
+                document.getElementById('logSearch').focus();
+            }
+        });
+
+        window.addEventListener('focus', function() {
+            if (autoRefreshInterval) {
+                loadLogFile();
+            }
+        });
+    }
+
+    function loadLogFile() {
+        showLoading();
+        
+        const lines = document.getElementById('linesToShow').value;
+        const logFile = currentLogPath;
+        
+        const formData = new FormData();
+        formData.append('log_path', logFile);
+        formData.append('search_term', document.getElementById('logSearch').value);
+        
+        fetch('{{ url_for("vps_view_logs", vps_id=vps.vps_id) }}', {
+            method: 'POST',
+            body: formData
+        })
+        .then(response => response.text())
+        .then(html => {
+            const parser = new DOMParser();
+            const doc = parser.parseFromString(html, 'text/html');
+            const logContent = doc.querySelector('#logContent')?.textContent || 'No log data found';
+            
+            displayLogs(logContent);
+            updateLogStats(logContent);
+            hideLoading();
+        })
+        .catch(error => {
+            displayError('Failed to load log file: ' + error.message);
+            hideLoading();
+        });
+    }
+
+    function loadCustomLog() {
+        const customPath = document.getElementById('customLogPath').value.trim();
+        if (!customPath) {
+            showToast('Please enter a log file path', 'error');
+            return;
+        }
+        
+        currentLogPath = customPath;
+        loadLogFile();
+    }
+
+    function loadCommonLog(type) {
+        const logFiles = {
+            'syslog': '/var/log/syslog',
+            'auth': '/var/log/auth.log',
+            'kernel': '/var/log/kern.log',
+            'apache': '/var/log/apache2/error.log',
+            'nginx': '/var/log/nginx/error.log'
+        };
+        
+        if (logFiles[type]) {
+            currentLogPath = logFiles[type];
+            document.getElementById('logFileSelect').value = currentLogPath;
+            document.getElementById('customPathContainer').classList.add('hidden');
+            loadLogFile();
+        }
+    }
+
+    function displayLogs(logContent) {
+        const container = document.getElementById('logContainer');
+        const lines = logContent.split('\n').filter(line => line.trim());
+        
+        let html = '';
+        lines.forEach(line => {
+            const logLevel = getLogLevel(line);
+            const className = getLogLevelClass(logLevel);
+            
+            html += `<div class="log-entry ${className} hover:bg-gray-800/30 cursor-pointer py-1 px-2 rounded-lg border-l-3 border-transparent hover:border-blue-500/50 transition-all duration-300" onclick="showLogDetail('${escapeHtml(line)}')">
+                <span class="log-level ${className}-badge px-2 py-1 rounded-full text-xs mr-2">${logLevel}</span>
+                ${escapeHtml(line)}
+            </div>`;
+        });
+        
+        container.innerHTML = html || '<div class="text-center text-gray-400 py-8">No log entries found</div>';
+        document.getElementById('displayedLines').textContent = `${lines.length} lines displayed`;
+        document.getElementById('lastUpdated').textContent = new Date().toLocaleTimeString();
+        document.getElementById('currentLogFile').textContent = currentLogPath.split('/').pop();
+        
+        filterLogs();
+    }
+
+    function filterLogs() {
+        const searchTerm = document.getElementById('logSearch').value.toLowerCase();
+        const logLevel = document.getElementById('logLevelFilter').value;
+        const entries = document.querySelectorAll('.log-entry');
+        
+        let visibleCount = 0;
+        
+        entries.forEach(entry => {
+            const text = entry.textContent.toLowerCase();
+            const entryLogLevel = entry.querySelector('.log-level').textContent.toLowerCase();
+            
+            const matchesSearch = !searchTerm || text.includes(searchTerm);
+            const matchesLevel = logLevel === 'all' || entryLogLevel.includes(logLevel);
+            
+            if (matchesSearch && matchesLevel) {
+                entry.style.display = 'block';
+                visibleCount++;
+            } else {
+                entry.style.display = 'none';
+            }
+        });
+        
+        document.getElementById('displayedLines').textContent = `${visibleCount} lines displayed`;
+    }
+
+    function updateLogStats(logContent) {
+        const lines = logContent.split('\n').filter(line => line.trim());
+        let info = 0, warning = 0, error = 0;
+        
+        lines.forEach(line => {
+            const level = getLogLevel(line);
+            switch(level.toLowerCase()) {
+                case 'info':
+                    info++;
+                    break;
+                case 'warning':
+                case 'warn':
+                    warning++;
+                    break;
+                case 'error':
+                case 'err':
+                case 'emerg':
+                case 'alert':
+                case 'crit':
+                    error++;
+                    break;
+            }
+        });
+        
+        document.getElementById('totalLines').textContent = lines.length;
+        document.getElementById('infoCount').textContent = info;
+        document.getElementById('warningCount').textContent = warning;
+        document.getElementById('errorCount').textContent = error;
+    }
+
+    function getLogLevel(line) {
+        const lowerLine = line.toLowerCase();
+        if (lowerLine.includes('emerg') || lowerLine.includes('panic')) return 'EMERG';
+        if (lowerLine.includes('alert')) return 'ALERT';
+        if (lowerLine.includes('crit')) return 'CRIT';
+        if (lowerLine.includes('err')) return 'ERROR';
+        if (lowerLine.includes('warning') || lowerLine.includes('warn')) return 'WARN';
+        if (lowerLine.includes('notice')) return 'NOTICE';
+        if (lowerLine.includes('info')) return 'INFO';
+        if (lowerLine.includes('debug')) return 'DEBUG';
+        return 'INFO';
+    }
+
+    function getLogLevelClass(level) {
+        const classes = {
+            'EMERG': 'text-red-200 bg-red-900/50',
+            'ALERT': 'text-red-300 bg-red-800/50',
+            'CRIT': 'text-red-400 bg-red-700/50',
+            'ERROR': 'text-red-500',
+            'WARN': 'text-yellow-400',
+            'NOTICE': 'text-blue-400',
+            'INFO': 'text-green-400',
+            'DEBUG': 'text-gray-400'
+        };
+        return classes[level] || 'text-gray-400';
+    }
+
+    function showLogDetail(logEntry) {
+        document.getElementById('logDetailContent').textContent = logEntry;
+        
+        const parsedHtml = `
+            <div class="flex justify-between py-1">
+                <span class="text-gray-400">Timestamp:</span>
+                <span class="font-mono text-gray-200">${extractTimestamp(logEntry)}</span>
+            </div>
+            <div class="flex justify-between py-1">
+                <span class="text-gray-400">Hostname:</span>
+                <span class="font-mono text-gray-200">${extractHostname(logEntry)}</span>
+            </div>
+            <div class="flex justify-between py-1">
+                <span class="text-gray-400">Service:</span>
+                <span class="font-mono text-gray-200">${extractService(logEntry)}</span>
+            </div>
+            <div class="flex justify-between py-1">
+                <span class="text-gray-400">Level:</span>
+                <span class="font-mono ${getLogLevelClass(getLogLevel(logEntry))}">${getLogLevel(logEntry)}</span>
+            </div>
+        `;
+        
+        document.getElementById('parsedFields').innerHTML = parsedHtml;
+        document.getElementById('logDetailModal').classList.remove('hidden');
+    }
+
+    function hideLogDetail() {
+        document.getElementById('logDetailModal').classList.add('hidden');
+    }
+
+    function extractTimestamp(logEntry) {
+        const timestampMatch = logEntry.match(/\w{3}\s+\d{1,2}\s+\d{2}:\d{2}:\d{2}/) || 
+                              logEntry.match(/\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}/);
+        return timestampMatch ? timestampMatch[0] : 'N/A';
+    }
+
+    function extractHostname(logEntry) {
+        const hostnameMatch = logEntry.match(/\s(\w+)\s+/);
+        return hostnameMatch ? hostnameMatch[1] : 'N/A';
+    }
+
+    function extractService(logEntry) {
+        const serviceMatch = logEntry.match(/(\w+)(?:\[\d+\])?:/);
+        return serviceMatch ? serviceMatch[1] : 'N/A';
+    }
+
+    function copyLogEntry() {
+        const logEntry = document.getElementById('logDetailContent').textContent;
+        navigator.clipboard.writeText(logEntry).then(() => {
+            showToast('Log entry copied to clipboard', 'success');
+        });
+    }
+
+    function searchSimilar() {
+        const logEntry = document.getElementById('logDetailContent').textContent;
+        const searchTerm = logEntry.split(':').slice(1).join(':').trim().split(' ')[0];
+        document.getElementById('logSearch').value = searchTerm;
+        filterLogs();
+        hideLogDetail();
+    }
+
+    function refreshLogs() {
+        loadLogFile();
+        showToast('Logs refreshed', 'success');
+    }
+
+    function clearLogs() {
+        document.getElementById('logContainer').innerHTML = 
+            '<div class="text-center text-gray-400 py-8">Log display cleared</div>';
+        document.getElementById('displayedLines').textContent = '0 lines displayed';
+        showToast('Log display cleared', 'info');
+    }
+
+    function downloadLogs() {
+        const logContent = document.getElementById('logContainer').textContent;
+        const blob = new Blob([logContent], { type: 'text/plain' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `logs-{{ vps.vps_id }}-${new Date().toISOString().split('T')[0]}.txt`;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+        showToast('Logs downloaded', 'success');
+    }
+
+    function toggleAutoRefresh() {
+        const button = document.getElementById('autoRefreshBtn');
+        
+        if (autoRefreshInterval) {
+            clearInterval(autoRefreshInterval);
+            autoRefreshInterval = null;
+            button.classList.remove('bg-green-600/80');
+            button.classList.add('bg-blue-600/80');
+            showToast('Auto-refresh disabled', 'info');
+        } else {
+            autoRefreshInterval = setInterval(loadLogFile, 5000);
+            button.classList.remove('bg-blue-600/80');
+            button.classList.add('bg-green-600/80');
+            showToast('Auto-refresh enabled (5s)', 'success');
+        }
+    }
+
+    function tailLogs() {
+        showToast('Starting real-time log tail...', 'info');
+        document.getElementById('linesToShow').value = 'all';
+        loadLogFile();
+        toggleAutoRefresh();
+    }
+
+    function scrollToTop() {
+        document.getElementById('logContainer').scrollTop = 0;
+    }
+
+    function scrollToBottom() {
+        const container = document.getElementById('logContainer');
+        container.scrollTop = container.scrollHeight;
+    }
+
+    function toggleWrap() {
+        const container = document.getElementById('logContainer');
+        const button = document.getElementById('wrapToggle');
+        
+        isWrapping = !isWrapping;
+        container.style.whiteSpace = isWrapping ? 'pre-wrap' : 'pre';
+        button.innerHTML = isWrapping ? 
+            '<i class="fas fa-text-width mr-1"></i>No Wrap' : 
+            '<i class="fas fa-text-width mr-1"></i>Wrap';
+    }
+
+    function showLoading() {
+        document.getElementById('loadingOverlay').classList.remove('hidden');
+        document.getElementById('logStatus').textContent = 'Loading...';
+        document.getElementById('logStatus').className = 'px-2 py-1 bg-yellow-900/50 text-yellow-300 text-xs rounded-full';
+    }
+
+    function hideLoading() {
+        document.getElementById('loadingOverlay').classList.add('hidden');
+        document.getElementById('logStatus').textContent = 'Ready';
+        document.getElementById('logStatus').className = 'px-2 py-1 bg-green-900/50 text-green-300 text-xs rounded-full';
+    }
+
+    function displayError(message) {
+        document.getElementById('logContainer').innerHTML = 
+            `<div class="text-center text-red-400 py-8">
+                <i class="fas fa-exclamation-triangle text-2xl mb-3"></i>
+                <div>${message}</div>
+            </div>`;
+        document.getElementById('logStatus').textContent = 'Error';
+        document.getElementById('logStatus').className = 'px-2 py-1 bg-red-900/50 text-red-300 text-xs rounded-full';
+    }
+
+    function showToast(message, type) {
+        const toast = document.createElement('div');
+        toast.className = `fixed top-4 right-4 z-50 px-6 py-3 rounded-xl shadow-lg text-white backdrop-blur-sm border border-gray-700/50 ${
+            type === 'success' ? 'bg-green-600/80' : 
+            type === 'error' ? 'bg-red-600/80' : 'bg-blue-600/80'
+        }`;
+        toast.textContent = message;
+        document.body.appendChild(toast);
+        
+        setTimeout(() => {
+            toast.remove();
+        }, 3000);
+    }
+
+    function escapeHtml(text) {
+        const div = document.createElement('div');
+        div.textContent = text;
+        return div.innerHTML;
+    }
+</script>
+
+<style>
+.log-entry {
+    border-left: 3px solid transparent;
+    transition: all 0.3s ease;
+    font-family: 'SF Mono', 'Monaco', 'Cascadia Code', 'Roboto Mono', Consolas, 'Courier New', monospace;
+    font-size: 0.875rem;
+    line-height: 1.4;
+}
+
+.log-entry:hover {
+    border-left-color: #3b82f6;
+    background-color: rgba(59, 130, 246, 0.1);
+}
+
+.log-level-badge {
+    font-size: 0.75rem;
+    font-weight: 600;
+    text-transform: uppercase;
+}
+
+.EMERG-badge { background-color: #7f1d1d; color: #fee2e2; }
+.ALERT-badge { background-color: #991b1b; color: #fee2e2; }
+.CRIT-badge { background-color: #b91c1c; color: #fee2e2; }
+.ERROR-badge { background-color: #ef4444; color: #fee2e2; }
+.WARN-badge { background-color: #d97706; color: #fef3c7; }
+.NOTICE-badge { background-color: #1d4ed8; color: #dbeafe; }
+.INFO-badge { background-color: #047857; color: #d1fae5; }
+.DEBUG-badge { background-color: #4b5563; color: #e5e7eb; }
+
+#logContainer {
+    scrollbar-width: thin;
+    scrollbar-color: #4b5563/50 #1f2937/50;
+}
+
+#logContainer::-webkit-scrollbar {
+    width: 8px;
+}
+
+#logContainer::-webkit-scrollbar-track {
+    background: #1f2937/50;
+    border-radius: 4px;
+}
+
+#logContainer::-webkit-scrollbar-thumb {
+    background: #4b5563/50;
+    border-radius: 4px;
+}
+
+#logContainer::-webkit-scrollbar-thumb:hover {
+    background: #6b7280/50;
+}
+
+@keyframes spin {
+    0% { transform: rotate(0deg); }
+    100% { transform: rotate(360deg); }
+}
+
+.loading-spinner {
+    border: 2px solid #4b5563;
+    border-top: 2px solid #3b82f6;
+    border-radius: 50%;
+    width: 20px;
+    height: 20px;
+    animation: spin 1s linear infinite;
+}
+
+@media (max-width: 768px) {
+    .grid-cols-4 {
+        grid-template-columns: repeat(2, 1fr);
+    }
+    
+    .grid-cols-2 {
+        grid-template-columns: 1fr;
+    }
+    
+    #logContainer {
+        font-size: 0.75rem;
+    }
+}
+
+.log-entry::selection {
+    background: rgba(59, 130, 246, 0.3);
+}
+
+.log-entry::-moz-selection {
+    background: rgba(59, 130, 246, 0.3);
+}
+</style>
+{% endblock %}

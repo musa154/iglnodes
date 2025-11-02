@@ -1,0 +1,788 @@
+{% extends "base.html" %}
+
+{% block title %}Admin Panel - {{ panel_name }}{% endblock %}
+
+{% block content %}
+<div class="space-y-6">
+    <!-- Admin Header -->
+    <div class="card p-6 backdrop-blur-md bg-black/20 dark:bg-gray-900/30 border border-white/10 dark:border-gray-700/50 rounded-xl shadow-xl">
+        <div class="flex items-center justify-between">
+            <div>
+                <h1 class="text-3xl font-bold bg-gradient-to-r from-blue-400 to-purple-500 bg-clip-text text-transparent">Admin Panel</h1>
+                <p class="text-gray-400">System Management & Monitoring</p>
+            </div>
+            <div class="flex items-center space-x-4">
+                <span class="px-3 py-1 bg-gradient-to-r from-green-500/20 to-emerald-500/20 text-green-400 border border-green-500/30 rounded-full text-sm backdrop-blur-sm">
+                    <i class="fas fa-circle mr-1"></i>
+                    System Online
+                </span>
+                <span class="text-sm text-gray-500">
+                    Last updated: {{ system_stats.last_updated|default('N/A') }}
+                </span>
+            </div>
+        </div>
+    </div>
+
+    <!-- Quick Stats Cards -->
+    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+        <div class="stat-card backdrop-blur-md bg-black/20 dark:bg-gray-900/30 p-6 rounded-xl shadow-xl border border-white/10 dark:border-gray-700/50 hover:shadow-2xl transition-all duration-300 hover:-translate-y-1">
+            <div class="flex items-center justify-between">
+                <div>
+                    <p class="text-sm text-gray-400">Total VPS</p>
+                    <p class="text-3xl font-bold text-white">{{ total_vps }}</p>
+                    <p class="text-xs text-green-400 mt-1">
+                        <i class="fas fa-arrow-up mr-1"></i>{{ total_vps_created }} created
+                    </p>
+                </div>
+                <i class="fas fa-server text-4xl text-blue-400"></i>
+            </div>
+        </div>
+        
+        <div class="stat-card backdrop-blur-md bg-black/20 dark:bg-gray-900/30 p-6 rounded-xl shadow-xl border border-white/10 dark:border-gray-700/50 hover:shadow-2xl transition-all duration-300 hover:-translate-y-1">
+            <div class="flex items-center justify-between">
+                <div>
+                    <p class="text-sm text-gray-400">Total Users</p>
+                    <p class="text-3xl font-bold text-white">{{ total_users }}</p>
+                    <p class="text-xs text-gray-500 mt-1">Active users</p>
+                </div>
+                <i class="fas fa-users text-4xl text-green-400"></i>
+            </div>
+        </div>
+        
+        <div class="stat-card backdrop-blur-md bg-black/20 dark:bg-gray-900/30 p-6 rounded-xl shadow-xl border border-white/10 dark:border-gray-700/50 hover:shadow-2xl transition-all duration-300 hover:-translate-y-1">
+            <div class="flex items-center justify-between">
+                <div>
+                    <p class="text-sm text-gray-400">Banned Users</p>
+                    <p class="text-3xl font-bold text-white">{{ total_banned }}</p>
+                    <p class="text-xs text-red-400 mt-1">
+                        {{ ((total_banned / total_users * 100) if total_users > 0 else 0)|round(1) }}% of total
+                    </p>
+                </div>
+                <i class="fas fa-ban text-4xl text-red-400"></i>
+            </div>
+        </div>
+        
+        <div class="stat-card backdrop-blur-md bg-black/20 dark:bg-gray-900/30 p-6 rounded-xl shadow-xl border border-white/10 dark:border-gray-700/50 hover:shadow-2xl transition-all duration-300 hover:-translate-y-1">
+            <div class="flex items-center justify-between">
+                <div>
+                    <p class="text-sm text-gray-400">Total Restarts</p>
+                    <p class="text-3xl font-bold text-white">{{ total_restarts }}</p>
+                    <p class="text-xs text-yellow-400 mt-1">System operations</p>
+                </div>
+                <i class="fas fa-redo text-4xl text-yellow-400"></i>
+            </div>
+        </div>
+    </div>
+
+    <!-- System Overview -->
+    <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        <!-- System Status -->
+        <div class="card backdrop-blur-md bg-black/20 dark:bg-gray-900/30 p-6 rounded-xl shadow-xl border border-white/10 dark:border-gray-700/50">
+            <h3 class="text-xl font-bold mb-4 text-white">System Status</h3>
+            <div class="space-y-4">
+                <div>
+                    <div class="flex justify-between mb-1 text-sm">
+                        <span class="text-gray-400">CPU Usage</span>
+                        <span class="font-medium text-white">{{ system_stats.cpu_usage|default(0)|round(1) }}%</span>
+                    </div>
+                    <div class="w-full bg-gray-800/50 rounded-full h-2 backdrop-blur-sm border border-gray-600/30">
+                        <div class="bg-gradient-to-r from-blue-500 to-blue-600 h-2 rounded-full transition-all duration-500" 
+                             style="width: {{ system_stats.cpu_usage|default(0) }}%"></div>
+                    </div>
+                </div>
+                
+                <div>
+                    <div class="flex justify-between mb-1 text-sm">
+                        <span class="text-gray-400">Memory Usage</span>
+                        <span class="font-medium text-white">{{ system_stats.memory_usage|default(0)|round(1) }}%</span>
+                    </div>
+                    <div class="w-full bg-gray-800/50 rounded-full h-2 backdrop-blur-sm border border-gray-600/30">
+                        <div class="bg-gradient-to-r from-green-500 to-green-600 h-2 rounded-full transition-all duration-500" 
+                             style="width: {{ system_stats.memory_usage|default(0) }}%"></div>
+                    </div>
+                </div>
+                
+                <div>
+                    <div class="flex justify-between mb-1 text-sm">
+                        <span class="text-gray-400">Disk Usage</span>
+                        <span class="font-medium text-white">{{ system_stats.disk_usage|default(0)|round(1) }}%</span>
+                    </div>
+                    <div class="w-full bg-gray-800/50 rounded-full h-2 backdrop-blur-sm border border-gray-600/30">
+                        <div class="bg-gradient-to-r from-purple-500 to-purple-600 h-2 rounded-full transition-all duration-500" 
+                             style="width: {{ system_stats.disk_usage|default(0) }}%"></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- System Controls -->
+        <div class="card backdrop-blur-md bg-black/20 dark:bg-gray-900/30 p-6 rounded-xl shadow-xl border border-white/10 dark:border-gray-700/50">
+            <h3 class="text-xl font-bold mb-4 text-white">System Controls</h3>
+            <div class="space-y-4">
+                <!-- Maintenance Mode -->
+                <div class="flex items-center justify-between p-3 bg-gray-800/30 dark:bg-gray-800/20 rounded-xl border border-gray-600/30 backdrop-blur-sm">
+                    <div>
+                        <div class="font-bold text-white">Maintenance Mode</div>
+                        <div class="text-sm text-gray-400">Disable public access to the panel</div>
+                    </div>
+                    <button onclick="toggleSetting('maintenance_mode', '{{ maintenance_mode }}')" 
+                            class="relative inline-flex h-6 w-11 flex-shrink-0 cursor-pointer rounded-full border-2 border-gray-600/50 transition-all duration-300 ease-in-out focus:outline-none focus:ring-2 focus:ring-blue-500/50 focus:ring-offset-2 {% if maintenance_mode == 'on' %}bg-blue-600/80{% else %}bg-gray-600/50{% endif %} backdrop-blur-sm">
+                        <span class="sr-only">Maintenance Mode</span>
+                        <span aria-hidden="true" class="pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow ring-0 transition duration-300 ease-in-out {% if maintenance_mode == 'on' %}translate-x-5{% else %}translate-x-0{% endif %}"></span>
+                    </button>
+                </div>
+
+                <!-- Registration -->
+                <div class="flex items-center justify-between p-3 bg-gray-800/30 dark:bg-gray-800/20 rounded-xl border border-gray-600/30 backdrop-blur-sm">
+                    <div>
+                        <div class="font-bold text-white">User Registration</div>
+                        <div class="text-sm text-gray-400">Allow new users to register</div>
+                    </div>
+                    <button onclick="toggleSetting('registration_enabled', '{{ registration_enabled }}')" 
+                            class="relative inline-flex h-6 w-11 flex-shrink-0 cursor-pointer rounded-full border-2 border-gray-600/50 transition-all duration-300 ease-in-out focus:outline-none focus:ring-2 focus:ring-green-500/50 focus:ring-offset-2 {% if registration_enabled == 'on' %}bg-green-600/80{% else %}bg-gray-600/50{% endif %} backdrop-blur-sm">
+                        <span class="sr-only">Registration</span>
+                        <span aria-hidden="true" class="pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow ring-0 transition duration-300 ease-in-out {% if registration_enabled == 'on' %}translate-x-5{% else %}translate-x-0{% endif %}"></span>
+                    </button>
+                </div>
+
+                <!-- Quick Actions -->
+                <div class="grid grid-cols-2 gap-3 mt-4">
+                    <a href="{{ url_for('add_user') }}" 
+                       class="p-3 bg-blue-500/20 dark:bg-blue-500/10 rounded-xl text-center hover:bg-blue-500/30 dark:hover:bg-blue-500/20 transition-all duration-300 text-sm border border-blue-500/30 backdrop-blur-sm">
+                        <i class="fas fa-user-plus text-blue-400 mb-1 text-lg block"></i>
+                        <div class="text-blue-300 font-medium">Add User</div>
+                    </a>
+                    
+                    <button onclick="dockerPrune()" 
+                       class="p-3 bg-red-500/20 dark:bg-red-500/10 rounded-xl text-center hover:bg-red-500/30 dark:hover:bg-red-500/20 transition-all duration-300 text-sm border border-red-500/30 backdrop-blur-sm">
+                        <i class="fas fa-trash text-red-400 mb-1 text-lg block"></i>
+                        <div class="text-red-300 font-medium">Clean System</div>
+                    </button>
+                    
+                    <a href="{{ url_for('admin_backup') }}" 
+                       class="p-3 bg-purple-500/20 dark:bg-purple-500/10 rounded-xl text-center hover:bg-purple-500/30 dark:hover:bg-purple-500/20 transition-all duration-300 text-sm border border-purple-500/30 backdrop-blur-sm">
+                        <i class="fas fa-download text-purple-400 mb-1 text-lg block"></i>
+                        <div class="text-purple-300 font-medium">Backup</div>
+                    </a>
+
+                    <a href="{{ url_for('export_users') }}" 
+                       class="p-3 bg-green-500/20 dark:bg-green-500/10 rounded-xl text-center hover:bg-green-500/30 dark:hover:bg-green-500/20 transition-all duration-300 text-sm border border-green-500/30 backdrop-blur-sm">
+                        <i class="fas fa-file-export text-green-400 mb-1 text-lg block"></i>
+                        <div class="text-green-300 font-medium">Export Users</div>
+                    </a>
+                </div>
+            </div>
+        </div>
+
+        <!-- System Information -->
+        <div class="card backdrop-blur-md bg-black/20 dark:bg-gray-900/30 p-6 rounded-xl shadow-xl border border-white/10 dark:border-gray-700/50">
+            <h3 class="text-xl font-bold mb-4 text-white">System Information</h3>
+            <div class="space-y-3 text-sm">
+                <div class="flex justify-between">
+                    <span class="text-gray-400">Panel Version:</span>
+                    <span class="font-mono text-white">4.0</span>
+                </div>
+                <div class="flex justify-between">
+                    <span class="text-gray-400">Server IP:</span>
+                    <span class="font-mono text-white">{{ server_ip }}</span>
+                </div>
+                <div class="flex justify-between">
+                    <span class="text-gray-400">Max Containers:</span>
+                    <span class="text-white">{{ max_containers }}</span>
+                </div>
+                <div class="flex justify-between">
+                    <span class="text-gray-400">VPS per User:</span>
+                    <span class="text-white">{{ max_vps_per_user }}</span>
+                </div>
+                <div class="flex justify-between">
+                    <span class="text-gray-400">Hostname Prefix:</span>
+                    <span class="font-mono text-white">{{ vps_hostname_prefix }}</span>
+                </div>
+            </div>
+
+            <!-- System Health -->
+            <div class="mt-4 p-3 bg-green-500/20 border border-green-500/30 rounded-xl backdrop-blur-sm">
+                <div class="flex items-center">
+                    <i class="fas fa-check-circle text-green-400 mr-2 text-lg"></i>
+                    <div>
+                        <div class="font-bold text-green-300">System Healthy</div>
+                        <div class="text-green-400 text-sm">All services running normally</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- VPS Management -->
+    <div class="card backdrop-blur-md bg-black/20 dark:bg-gray-900/30 p-6 rounded-xl shadow-xl border border-white/10 dark:border-gray-700/50">
+        <div class="flex items-center justify-between mb-6">
+            <h3 class="text-xl font-bold text-white">VPS Management ({{ vps_list|length }})</h3>
+            <div class="flex space-x-2">
+                <a href="{{ url_for('create_vps') }}" class="px-6 py-3 rounded-xl flex items-center space-x-2 bg-gradient-to-r from-blue-600 to-blue-700 text-white font-semibold hover:from-blue-700 hover:to-blue-800 transition-all duration-300 shadow-lg hover:shadow-xl backdrop-blur-sm">
+                    <i class="fas fa-download"></i>
+                    <span>Create VPS</span>
+                </a>
+            </div>
+        </div>
+        
+        {% if vps_list %}
+        <div class="overflow-x-auto">
+            <table class="w-full min-w-full">
+                <thead>
+                    <tr class="border-b border-gray-600/30">
+                        <th class="text-left p-3 text-sm font-bold text-gray-400">VPS ID</th>
+                        <th class="text-left p-3 text-sm font-bold text-gray-400">User</th>
+                        <th class="text-left p-3 text-sm font-bold text-gray-400">Resources</th>
+                        <th class="text-left p-3 text-sm font-bold text-gray-400">Status</th>
+                        <th class="text-left p-3 text-sm font-bold text-gray-400">Expires</th>
+                        <th class="text-left p-3 text-sm font-bold text-gray-400">Actions</th>
+                    </tr>
+                </thead>
+                <tbody class="divide-y divide-gray-600/30">
+                    {% for vps in vps_list %}
+                    <tr class="hover:bg-gray-800/30 transition-all duration-200 rounded-xl">
+                        <td class="p-3">
+                            <!-- Clickable VPS ID that goes to VPS details -->
+                            <a href="{{ url_for('vps_details', vps_id=vps.vps_id) }}" 
+                               class="font-bold text-blue-400 hover:text-blue-300 transition-all duration-200 flex items-center space-x-2 group">
+                                <i class="fas fa-external-link-alt text-xs opacity-0 group-hover:opacity-100 transition-opacity"></i>
+                                <span>{{ vps.vps_id }}</span>
+                            </a>
+                            <div class="text-xs text-gray-500 mt-1">{{ vps.tags }}</div>
+                        </td>
+                        <td class="p-3">
+                            {% set user = users|selectattr("id", "equalto", vps.created_by)|first %}
+                            <div class="text-sm text-white">{{ user.username if user else 'Unknown' }}</div>
+                            <div class="text-xs text-gray-500">ID: {{ vps.created_by }}</div>
+                        </td>
+                        <td class="p-3">
+                            <div class="text-sm text-white">
+                                {{ vps.memory }}GB / {{ vps.cpu }}CPU
+                            </div>
+                            <div class="text-xs text-gray-500">{{ vps.disk }}GB Disk</div>
+                            {% if vps.additional_ports %}
+                            <div class="text-xs text-blue-400 mt-1">
+                                +{{ vps.additional_ports.split(',')|length }} ports
+                            </div>
+                            {% endif %}
+                        </td>
+                        <td class="p-3">
+                            {% if vps.status == 'running' %}
+                                <span class="px-3 py-1 bg-green-500/20 text-green-400 rounded-full text-xs border border-green-500/30 backdrop-blur-sm flex items-center space-x-1">
+                                    <i class="fas fa-play text-xs"></i>
+                                    <span>Running</span>
+                                </span>
+                            {% elif vps.status == 'suspended' %}
+                                <span class="px-3 py-1 bg-yellow-500/20 text-yellow-400 rounded-full text-xs border border-yellow-500/30 backdrop-blur-sm flex items-center space-x-1">
+                                    <i class="fas fa-pause text-xs"></i>
+                                    <span>Suspended</span>
+                                </span>
+                            {% elif vps.status == 'stopped' %}
+                                <span class="px-3 py-1 bg-red-500/20 text-red-400 rounded-full text-xs border border-red-500/30 backdrop-blur-sm flex items-center space-x-1">
+                                    <i class="fas fa-stop text-xs"></i>
+                                    <span>Stopped</span>
+                                </span>
+                            {% else %}
+                                <span class="px-3 py-1 bg-gray-600/30 text-gray-300 rounded-full text-xs border border-gray-600/50">
+                                    {{ vps.status|title }}
+                                </span>
+                            {% endif %}
+                        </td>
+                        <td class="p-3">
+                            <div class="text-sm text-white">
+                                {{ vps.expires_at[:10] if vps.expires_at and vps.expires_at != 'None' else 'Never' }}
+                            </div>
+                            {% if vps.expires_at and vps.expires_at != 'None' %}
+                            <div class="text-xs text-gray-500">
+                                {{ vps.expires_at[11:16] }}
+                            </div>
+                            {% endif %}
+                        </td>
+                        <td class="p-3">
+                            <div class="flex space-x-2">
+                                <!-- Edit VPS Button -->
+                                <a href="{{ url_for('edit_vps', vps_id=vps.vps_id) }}" 
+                                   class="text-blue-400 hover:text-blue-300 transition-all duration-200 p-2 rounded-xl bg-blue-500/20 hover:bg-blue-500/30 border border-blue-500/30 backdrop-blur-sm"
+                                   title="Edit VPS">
+                                    <i class="fas fa-edit text-sm"></i>
+                                </a>
+
+                                <!-- VPS Control Buttons -->
+                                {% if vps.status == 'running' %}
+                                <button onclick="suspendVPS('{{ vps.vps_id }}')" 
+                                        class="text-yellow-400 hover:text-yellow-300 transition-all duration-200 p-2 rounded-xl bg-yellow-500/20 hover:bg-yellow-500/30 border border-yellow-500/30 backdrop-blur-sm" 
+                                        title="Suspend VPS">
+                                    <i class="fas fa-pause text-sm"></i>
+                                </button>
+                                {% elif vps.status == 'suspended' %}
+                                <button onclick="unsuspendVPS('{{ vps.vps_id }}')" 
+                                        class="text-green-400 hover:text-green-300 transition-all duration-200 p-2 rounded-xl bg-green-500/20 hover:bg-green-500/30 border border-green-500/30 backdrop-blur-sm" 
+                                        title="Unsuspend VPS">
+                                    <i class="fas fa-play text-sm"></i>
+                                </button>
+                                {% endif %}
+                                
+                                <!-- Delete VPS Button -->
+                                <button onclick="deleteVPS('{{ vps.vps_id }}')" 
+                                        class="text-red-400 hover:text-red-300 transition-all duration-200 p-2 rounded-xl bg-red-500/20 hover:bg-red-500/30 border border-red-500/30 backdrop-blur-sm" 
+                                        title="Delete VPS">
+                                    <i class="fas fa-trash text-sm"></i>
+                                </button>
+
+                                <!-- Quick Actions Dropdown -->
+                                <div class="relative group">
+                                    <button class="text-gray-400 hover:text-gray-300 transition-all duration-200 p-2 rounded-xl bg-gray-600/20 hover:bg-gray-600/30 border border-gray-600/30 backdrop-blur-sm"
+                                            title="More Actions">
+                                        <i class="fas fa-ellipsis-v text-sm"></i>
+                                    </button>
+                                    <div class="absolute right-0 mt-1 w-48 bg-gray-800/80 dark:bg-gray-800/50 rounded-xl shadow-2xl border border-gray-600/30 opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-300 z-10 backdrop-blur-md">
+                                        <div class="py-1">
+                                            <a href="{{ url_for('vps_console', vps_id=vps.vps_id) }}" 
+                                               class="block px-4 py-3 text-sm text-gray-300 hover:bg-gray-700/50 transition-colors duration-200">
+                                                <i class="fas fa-terminal mr-2"></i>Console
+                                            </a>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        {% else %}
+        <div class="text-center py-8">
+            <i class="fas fa-server text-6xl text-gray-600 mb-3"></i>
+            <p class="text-gray-400">No VPS instances found</p>
+            <a href="{{ url_for('create_vps') }}" class="px-6 py-3 mt-4 inline-flex items-center space-x-2 bg-gradient-to-r from-blue-600 to-blue-700 text-white font-semibold rounded-xl hover:from-blue-700 hover:to-blue-800 transition-all duration-300 shadow-lg">
+                <i class="fas fa-plus"></i>
+                <span>Create First VPS</span>
+            </a>
+        </div>
+        {% endif %}
+    </div>
+
+    <!-- User Management -->
+    <div class="card backdrop-blur-md bg-black/20 dark:bg-gray-900/30 p-6 rounded-xl shadow-xl border border-white/10 dark:border-gray-700/50">
+        <div class="flex items-center justify-between mb-6">
+            <h3 class="text-xl font-bold text-white">User Management ({{ users|length }})</h3>
+            <a href="{{ url_for('add_user') }}" class="px-6 py-3 rounded-xl flex items-center space-x-2 bg-gradient-to-r from-green-600 to-green-700 text-white font-semibold hover:from-green-700 hover:to-green-800 transition-all duration-300 shadow-lg">
+                <i class="fas fa-user-plus"></i>
+                <span>Add User</span>
+            </a>
+        </div>
+        
+        {% if users %}
+        <div class="overflow-x-auto">
+            <table class="w-full min-w-full">
+                <thead>
+                    <tr class="border-b border-gray-600/30">
+                        <th class="text-left p-3 text-sm font-bold text-gray-400">Username</th>
+                        <th class="text-left p-3 text-sm font-bold text-gray-400">Role</th>
+                        <th class="text-left p-3 text-sm font-bold text-gray-400">Email</th>
+                        <th class="text-left p-3 text-sm font-bold text-gray-400">VPS Count</th>
+                        <th class="text-left p-3 text-sm font-bold text-gray-400">Status</th>
+                        <th class="text-left p-3 text-sm font-bold text-gray-400">Actions</th>
+                    </tr>
+                </thead>
+                <tbody class="divide-y divide-gray-600/30">
+                    {% for user in users %}
+                    <tr class="hover:bg-gray-800/30 transition-all duration-200 rounded-xl">
+                        <td class="p-3">
+                            <div class="font-bold text-white">{{ user.username }}</div>
+                            <div class="text-xs text-gray-500">ID: {{ user.id }}</div>
+                        </td>
+                        <td class="p-3">
+                            <span class="px-3 py-1 rounded-full text-xs font-bold 
+                                {% if user.role == 'admin' %}bg-purple-500/20 text-purple-400 border border-purple-500/30
+                                {% else %}bg-blue-500/20 text-blue-400 border border-blue-500/30{% endif %} backdrop-blur-sm">
+                                {{ user.role|title }}
+                            </span>
+                        </td>
+                        <td class="p-3">
+                            <div class="text-sm text-white">{{ user.email or 'N/A' }}</div>
+                        </td>
+                        <td class="p-3">
+                            {% set user_vps = vps_list|selectattr("created_by", "equalto", user.id)|list %}
+                            <span class="text-sm font-bold text-white">{{ user_vps|length }}</span>
+                        </td>
+                        <td class="p-3">
+                            {% set is_banned = banned_users is defined and user.id in (banned_users|map(attribute='user_id')|list if banned_users is iterable else []) %}
+                            {% if is_banned %}
+                                <span class="px-3 py-1 bg-red-500/20 text-red-400 rounded-full text-xs border border-red-500/30 backdrop-blur-sm">
+                                    <i class="fas fa-ban mr-1"></i>Banned
+                                </span>
+                            {% else %}
+                                <span class="px-3 py-1 bg-green-500/20 text-green-400 rounded-full text-xs border border-green-500/30 backdrop-blur-sm">
+                                    <i class="fas fa-check mr-1"></i>Active
+                                </span>
+                            {% endif %}
+                        </td>
+                        <td class="p-3">
+                            <div class="flex space-x-2">
+                                <a href="{{ url_for('edit_user', user_id=user.id) }}" 
+                                   class="text-blue-400 hover:text-blue-300 transition-all duration-200 p-2 rounded-xl bg-blue-500/20 hover:bg-blue-500/30 border border-blue-500/30 backdrop-blur-sm" 
+                                   title="Edit User">
+                                    <i class="fas fa-edit text-sm"></i>
+                                </a>
+                                
+                                {% if user.role != 'admin' %}
+                                    {% set is_banned = banned_users is defined and user.id in (banned_users|map(attribute='user_id')|list if banned_users is iterable else []) %}
+                                    {% if is_banned %}
+                                    <a href="{{ url_for('unban_user', user_id=user.id) }}" 
+                                       class="text-green-400 hover:text-green-300 transition-all duration-200 p-2 rounded-xl bg-green-500/20 hover:bg-green-500/30 border border-green-500/30 backdrop-blur-sm" 
+                                       title="Unban User">
+                                        <i class="fas fa-check text-sm"></i>
+                                    </a>
+                                    {% else %}
+                                    <button onclick="banUser({{ user.id }})" 
+                                            class="text-red-400 hover:text-red-300 transition-all duration-200 p-2 rounded-xl bg-red-500/20 hover:bg-red-500/30 border border-red-500/30 backdrop-blur-sm" 
+                                            title="Ban User">
+                                        <i class="fas fa-ban text-sm"></i>
+                                    </button>
+                                    {% endif %}
+                                    
+                                    {% if user.role != 'admin' %}
+                                    <button onclick="toggleAdmin({{ user.id }}, 'make')" 
+                                            class="text-purple-400 hover:text-purple-300 transition-all duration-200 p-2 rounded-xl bg-purple-500/20 hover:bg-purple-500/30 border border-purple-500/30 backdrop-blur-sm" 
+                                            title="Make Admin">
+                                        <i class="fas fa-shield-alt text-sm"></i>
+                                    </button>
+                                    {% endif %}
+                                {% else %}
+                                    <button onclick="toggleAdmin({{ user.id }}, 'remove')" 
+                                            class="text-orange-400 hover:text-orange-300 transition-all duration-200 p-2 rounded-xl bg-orange-500/20 hover:bg-orange-500/30 border border-orange-500/30 backdrop-blur-sm" 
+                                            title="Remove Admin">
+                                        <i class="fas fa-user text-sm"></i>
+                                    </button>
+                                {% endif %}
+                            </div>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        {% else %}
+        <div class="text-center py-8">
+            <i class="fas fa-users text-6xl text-gray-600 mb-3"></i>
+            <p class="text-gray-400">No users found</p>
+        </div>
+        {% endif %}
+    </div>
+
+    <!-- System Settings Form -->
+    <div class="card backdrop-blur-md bg-black/20 dark:bg-gray-900/30 p-6 rounded-xl shadow-xl border border-white/10 dark:border-gray-700/50">
+        <h3 class="text-xl font-bold mb-4 text-white">System Settings</h3>
+        <form method="POST" action="{{ url_for('admin_settings') }}" class="space-y-6">
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div>
+                    <label class="block text-sm font-bold text-gray-300 mb-2">Panel Name</label>
+                    <input type="text" name="panel_name" value="{{ panel_name }}" 
+                           class="w-full px-4 py-3 border border-gray-600/50 rounded-xl shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500/50 focus:border-blue-500/50 bg-gray-800/50 dark:bg-gray-800/30 text-white placeholder-gray-500 backdrop-blur-sm transition-all duration-200">
+                </div>
+                <div>
+                    <label class="block text-sm font-bold text-gray-300 mb-2">Watermark Text</label>
+                    <input type="text" name="watermark" value="{{ watermark }}" 
+                           class="w-full px-4 py-3 border border-gray-600/50 rounded-xl shadow-sm focus:outline-none focus:ring-2 focus:ring-purple-500/50 focus:border-purple-500/50 bg-gray-800/50 dark:bg-gray-800/30 text-white placeholder-gray-500 backdrop-blur-sm transition-all duration-200">
+                </div>
+                <div>
+                    <label class="block text-sm font-bold text-gray-300 mb-2">Welcome Message</label>
+                    <input type="text" name="welcome_message" value="{{ welcome_message }}" 
+                           class="w-full px-4 py-3 border border-gray-600/50 rounded-xl shadow-sm focus:outline-none focus:ring-2 focus:ring-green-500/50 focus:border-green-500/50 bg-gray-800/50 dark:bg-gray-800/30 text-white placeholder-gray-500 backdrop-blur-sm transition-all duration-200">
+                </div>
+                <div>
+                    <label class="block text-sm font-bold text-gray-300 mb-2">Server IP</label>
+                    <input type="text" name="server_ip" value="{{ server_ip }}" 
+                           class="w-full px-4 py-3 border border-gray-600/50 rounded-xl shadow-sm focus:outline-none focus:ring-2 focus:ring-orange-500/50 focus:border-orange-500/50 bg-gray-800/50 dark:bg-gray-800/30 text-white placeholder-gray-500 backdrop-blur-sm transition-all duration-200">
+                </div>
+                <div>
+                    <label class="block text-sm font-bold text-gray-300 mb-2">VPS Hostname Prefix</label>
+                    <input type="text" name="vps_hostname_prefix" value="{{ vps_hostname_prefix }}" 
+                           class="w-full px-4 py-3 border border-gray-600/50 rounded-xl shadow-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/50 focus:border-indigo-500/50 bg-gray-800/50 dark:bg-gray-800/30 text-white placeholder-gray-500 backdrop-blur-sm transition-all duration-200">
+                </div>
+                <div>
+                    <label class="block text-sm font-bold text-gray-300 mb-2">Max Containers</label>
+                    <input type="number" name="max_containers" value="{{ max_containers }}" min="1"
+                           class="w-full px-4 py-3 border border-gray-600/50 rounded-xl shadow-sm focus:outline-none focus:ring-2 focus:ring-teal-500/50 focus:border-teal-500/50 bg-gray-800/50 dark:bg-gray-800/30 text-white placeholder-gray-500 backdrop-blur-sm transition-all duration-200">
+                </div>
+                <div>
+                    <label class="block text-sm font-bold text-gray-300 mb-2">Max VPS per User</label>
+                    <input type="number" name="max_vps_per_user" value="{{ max_vps_per_user }}" min="1"
+                           class="w-full px-4 py-3 border border-gray-600/50 rounded-xl shadow-sm focus:outline-none focus:ring-2 focus:ring-pink-500/50 focus:border-pink-500/50 bg-gray-800/50 dark:bg-gray-800/30 text-white placeholder-gray-500 backdrop-blur-sm transition-all duration-200">
+                </div>
+            </div>
+            
+            <div class="flex justify-end pt-4 border-t border-gray-600/30">
+                <button type="submit" 
+                        class="px-8 py-3 rounded-xl flex items-center space-x-2 bg-gradient-to-r from-emerald-600 to-teal-600 text-white font-bold hover:from-emerald-700 hover:to-teal-700 transition-all duration-300 shadow-lg hover:shadow-xl backdrop-blur-sm">
+                    <i class="fas fa-save"></i>
+                    <span>Save Settings</span>
+                </button>
+            </div>
+        </form>
+    </div>
+
+    <!-- Audit Logs -->
+    <div class="card backdrop-blur-md bg-black/20 dark:bg-gray-900/30 p-6 rounded-xl shadow-xl border border-white/10 dark:border-gray-700/50">
+        <h3 class="text-xl font-bold mb-4 text-white">Recent Audit Logs</h3>
+        {% if audit_logs %}
+        <div class="overflow-x-auto">
+            <table class="w-full min-w-full">
+                <thead>
+                    <tr class="border-b border-gray-600/30">
+                        <th class="text-left p-3 text-sm font-bold text-gray-400">Time</th>
+                        <th class="text-left p-3 text-sm font-bold text-gray-400">User</th>
+                        <th class="text-left p-3 text-sm font-bold text-gray-400">Action</th>
+                        <th class="text-left p-3 text-sm font-bold text-gray-400">Details</th>
+                    </tr>
+                </thead>
+                <tbody class="divide-y divide-gray-600/30">
+                    {% for log in audit_logs[:10] %}
+                    <tr class="hover:bg-gray-800/30 transition-all duration-200 rounded-xl">
+                        <td class="p-3 text-sm text-white">{{ log.timestamp[:19] if log.timestamp else 'N/A' }}</td>
+                        <td class="p-3">
+                            {% set log_user = users|selectattr("id", "equalto", log.user_id)|first %}
+                            <span class="text-sm text-white">{{ log_user.username if log_user else 'System' }}</span>
+                        </td>
+                        <td class="p-3">
+                            <span class="px-3 py-1 bg-gray-600/30 text-gray-300 rounded-xl text-xs border border-gray-600/50 backdrop-blur-sm">{{ log.action }}</span>
+                        </td>
+                        <td class="p-3 text-sm text-gray-500">{{ log.details }}</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        {% else %}
+        <div class="text-center py-8">
+            <i class="fas fa-clipboard-list text-6xl text-gray-600 mb-3"></i>
+            <p class="text-gray-400">No audit logs available</p>
+        </div>
+        {% endif %}
+    </div>
+</div>
+
+<script>
+// Generic function to toggle settings
+async function toggleSetting(settingName, currentValue) {
+    const newValue = currentValue === 'on' ? 'off' : 'on';
+    
+    const formData = new FormData();
+    formData.append(settingName, newValue);
+    
+    try {
+        const response = await fetch('/admin/settings', {
+            method: 'POST',
+            body: formData
+        });
+        
+        if (response.ok) {
+            location.reload();
+        } else {
+            alert('Error updating setting');
+        }
+    } catch (error) {
+        console.error('Error:', error);
+        alert('Error updating setting');
+    }
+}
+
+// VPS management functions
+async function deleteVPS(vpsId) {
+    if (!confirm('Are you sure you want to delete this VPS? This action cannot be undone.')) return;
+    
+    try {
+        const response = await fetch(`/vps/${vpsId}/delete`, { method: 'POST' });
+        if (response.ok) {
+            location.reload();
+        } else {
+            const data = await response.json();
+            alert('Error: ' + (data.error || 'Failed to delete VPS'));
+        }
+    } catch (error) {
+        console.error('Error:', error);
+        alert('Error deleting VPS');
+    }
+}
+
+async function suspendVPS(vpsId) {
+    try {
+        const response = await fetch(`/admin/vps/${vpsId}/suspend`);
+        if (response.ok) {
+            location.reload();
+        } else {
+            const data = await response.json();
+            alert('Error: ' + (data.error || 'Failed to suspend VPS'));
+        }
+    } catch (error) {
+        console.error('Error:', error);
+        alert('Error suspending VPS');
+    }
+}
+
+async function unsuspendVPS(vpsId) {
+    try {
+        const response = await fetch(`/admin/vps/${vpsId}/unsuspend`);
+        if (response.ok) {
+            location.reload();
+        } else {
+            const data = await response.json();
+            alert('Error: ' + (data.error || 'Failed to unsuspend VPS'));
+        }
+    } catch (error) {
+        console.error('Error:', error);
+        alert('Error unsuspending VPS');
+    }
+}
+
+async function dockerPrune() {
+    if (!confirm('This will remove all unused Docker containers, images, and volumes. This action cannot be undone. Continue?')) return;
+    
+    try {
+        const response = await fetch('/admin/docker_prune');
+        const data = await response.json();
+        alert(data.message || data.error || 'Cleanup completed');
+        if (response.ok) {
+            location.reload();
+        }
+    } catch (error) {
+        console.error('Error:', error);
+        alert('Error cleaning system');
+    }
+}
+
+function banUser(userId) {
+    const reason = prompt('Enter ban reason:');
+    if (reason !== null && reason.trim() !== '') {
+        const form = document.createElement('form');
+        form.method = 'POST';
+        form.action = `/admin/user/${userId}/ban`;
+        
+        const input = document.createElement('input');
+        input.type = 'hidden';
+        input.name = 'reason';
+        input.value = reason.trim();
+        form.appendChild(input);
+        
+        document.body.appendChild(form);
+        form.submit();
+    }
+}
+
+function toggleAdmin(userId, action) {
+    const message = action === 'make' 
+        ? 'Are you sure you want to make this user an admin? They will have full access to the system.'
+        : 'Are you sure you want to remove admin privileges from this user?';
+    
+    if (confirm(message)) {
+        const url = action === 'make' 
+            ? `/admin/user/${userId}/make_admin`
+            : `/admin/user/${userId}/remove_admin`;
+        
+        window.location.href = url;
+    }
+}
+
+// Auto-refresh system stats every 30 seconds
+setInterval(() => {
+    // You can implement real-time stats updates here
+    console.log('Refreshing system stats...');
+}, 30000);
+
+// Add loading states for buttons
+document.addEventListener('DOMContentLoaded', function() {
+    const buttons = document.querySelectorAll('button, a[href="#"]');
+    buttons.forEach(button => {
+        button.addEventListener('click', function(e) {
+            if (this.classList.contains('btn-primary')) {
+                this.innerHTML = '<i class="fas fa-spinner fa-spin mr-2"></i>Loading...';
+                this.disabled = true;
+            }
+        });
+    });
+});
+</script>
+
+<style>
+/* Enhanced progress bar animations */
+.progress-bar {
+    transition: width 0.5s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+/* Smooth transitions for all interactive elements */
+.stat-card, .card {
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.stat-card:hover, .card:hover {
+    transform: translateY(-4px);
+    box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
+}
+
+/* Status badge animations */
+.status-badge {
+    animation: pulse 2s infinite;
+}
+
+@keyframes pulse {
+    0% { opacity: 1; }
+    50% { opacity: 0.7; }
+    100% { opacity: 1; }
+}
+
+/* Loading animation */
+.fa-spinner {
+    animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+    from { transform: rotate(0deg); }
+    to { transform: rotate(360deg); }
+}
+
+/* Clickable VPS ID styles */
+.vps-id-link {
+    transition: all 0.3s ease-in-out;
+}
+
+.vps-id-link:hover {
+    transform: translateX(4px);
+}
+
+/* Action button styles */
+.action-btn {
+    transition: all 0.3s ease-in-out;
+}
+
+.action-btn:hover {
+    transform: scale(1.05);
+}
+
+/* Glassmorphism enhancements */
+.backdrop-blur-md {
+    backdrop-filter: blur(12px);
+}
+
+/* Responsive table improvements */
+@media (max-width: 768px) {
+    .table-container {
+        font-size: 0.875rem;
+    }
+    
+    .action-buttons {
+        flex-direction: column;
+        gap: 0.5rem;
+    }
+}
+
+/* Gradient text for headers */
+.gradient-text {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+}
+</style>
+{% endblock %}

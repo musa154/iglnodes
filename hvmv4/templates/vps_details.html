@@ -1,0 +1,1571 @@
+{% extends "base.html" %}
+{% block title %}{{ vps.vps_id }} - {{ panel_name }}{% endblock %}
+{% block content %}
+<div class="max-w-7xl mx-auto p-4 sm:p-6">
+    <!-- Header Section -->
+    <div class="flex flex-col lg:flex-row lg:items-center lg:justify-between mb-6 gap-4">
+        <div class="flex flex-col">
+            <h1 class="text-3xl font-bold text-white/90 mb-2">{{ vps.vps_id }}</h1>
+            <div class="flex items-center space-x-4 flex-wrap">
+                <span class="px-3 py-1 rounded-full text-sm font-medium backdrop-blur-lg bg-white/10 border border-white/20
+                    {% if vps.status == 'running' %}text-green-300 bg-green-500/10 border-green-400/30
+                    {% elif vps.status == 'stopped' %}text-red-300 bg-red-500/10 border-red-400/30
+                    {% elif vps.status == 'suspended' %}text-yellow-300 bg-yellow-500/10 border-yellow-400/30
+                    {% elif vps.status == 'expired' %}text-orange-300 bg-orange-500/10 border-orange-400/30
+                    {% else %}text-gray-300 bg-gray-500/10 border-gray-400/30{% endif %}">
+                    {{ vps.status|upper }}
+                </span>
+                <span class="text-gray-300/80 text-sm">{{ vps.os_image }}</span>
+                {% if groups %}
+                <div class="flex space-x-1 flex-wrap">
+                    {% for group in groups %}
+                    <span class="px-2 py-1 backdrop-blur-lg bg-blue-500/20 border border-blue-400/30 text-blue-300 text-xs rounded-full">
+                        {{ group.name }}
+                    </span>
+                    {% endfor %}
+                </div>
+                {% endif %}
+            </div>
+        </div>
+       
+        <div class="flex space-x-2 flex-wrap justify-end">
+            <!-- Action Buttons -->
+            <button onclick="startVPS('{{ vps.vps_id }}')"
+                class="btn-glass flex items-center space-x-2 px-4 py-2 {% if vps.status == 'running' %}opacity-50 cursor-not-allowed{% endif %}"
+                {% if vps.status == 'running' %}disabled{% endif %}>
+                <i class="fas fa-play"></i>
+                <span>Start</span>
+            </button>
+           
+            <button onclick="stopVPS('{{ vps.vps_id }}')"
+                class="btn-glass flex items-center space-x-2 px-4 py-2 {% if vps.status != 'running' %}opacity-50 cursor-not-allowed{% endif %}"
+                {% if vps.status != 'running' %}disabled{% endif %}>
+                <i class="fas fa-stop"></i>
+                <span>Stop</span>
+            </button>
+           
+            <button onclick="restartVPS('{{ vps.vps_id }}')"
+                class="btn-glass flex items-center space-x-2 px-4 py-2 {% if vps.status != 'running' %}opacity-50 cursor-not-allowed{% endif %}"
+                {% if vps.status != 'running' %}disabled{% endif %}>
+                <i class="fas fa-redo"></i>
+                <span>Restart</span>
+            </button>
+           
+            {% if is_admin %}
+            <a href="{{ url_for('edit_vps', vps_id=vps.vps_id) }}"
+                class="btn-glass flex items-center space-x-2 px-4 py-2">
+                <i class="fas fa-edit"></i>
+                <span>Edit</span>
+            </a>
+           
+            <button onclick="deleteVPS('{{ vps.vps_id }}')"
+                class="btn-glass flex items-center space-x-2 px-4 py-2 bg-red-500/20 hover:bg-red-500/30 border-red-400/30">
+                <i class="fas fa-trash"></i>
+                <span>Delete</span>
+            </button>
+            {% endif %}
+        </div>
+    </div>
+
+    <!-- Alert Banner for Expired VPS -->
+    {% if vps.status == 'expired' %}
+    <div class="backdrop-blur-lg bg-orange-500/10 border border-orange-400/30 text-orange-300 px-4 py-3 rounded-lg mb-6">
+        <div class="flex justify-between items-center flex-wrap gap-2">
+            <div class="flex items-center">
+                <i class="fas fa-exclamation-triangle mr-2"></i>
+                <strong>VPS Expired</strong> - This VPS has expired and is currently suspended.
+            </div>
+            {% if is_admin %}
+            <button onclick="renewVPS('{{ vps.vps_id }}')" class="btn-glass bg-orange-500/20 hover:bg-orange-500/30 border-orange-400/30 px-4 py-2">
+                <i class="fas fa-sync-alt mr-2"></i>Renew Now
+            </button>
+            {% endif %}
+        </div>
+    </div>
+    {% endif %}
+
+    <!-- Quick Stats Row -->
+    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-6">
+        <div class="card-glass p-4">
+            <div class="flex justify-between items-start">
+                <div>
+                    <p class="text-sm text-gray-300/80 mb-1">CPU Usage</p>
+                    <p class="text-2xl font-bold text-white/90" id="cpu-usage">--</p>
+                </div>
+                <i class="fas fa-microchip text-blue-400 text-xl mt-1"></i>
+            </div>
+            <div class="mt-3">
+                <div class="w-full bg-black/20 rounded-full h-2">
+                    <div id="cpu-bar" class="progress-bar-glass h-2 rounded-full bg-gradient-to-r from-blue-500 to-cyan-400 transition-all duration-500 ease-out" style="width: 0%"></div>
+                </div>
+            </div>
+        </div>
+        <div class="card-glass p-4">
+            <div class="flex justify-between items-start">
+                <div>
+                    <p class="text-sm text-gray-300/80 mb-1">Memory Usage</p>
+                    <p class="text-2xl font-bold text-white/90" id="memory-usage">--</p>
+                </div>
+                <i class="fas fa-memory text-green-400 text-xl mt-1"></i>
+            </div>
+            <div class="mt-3">
+                <div class="w-full bg-black/20 rounded-full h-2">
+                    <div id="memory-bar" class="progress-bar-glass h-2 rounded-full bg-gradient-to-r from-green-500 to-emerald-400 transition-all duration-500 ease-out" style="width: 0%"></div>
+                </div>
+            </div>
+        </div>
+        <div class="card-glass p-4">
+            <div class="flex justify-between items-start">
+                <div>
+                    <p class="text-sm text-gray-300/80 mb-1">Disk Usage</p>
+                    <p class="text-2xl font-bold text-white/90" id="disk-usage">--</p>
+                </div>
+                <i class="fas fa-hdd text-yellow-400 text-xl mt-1"></i>
+            </div>
+            <div class="mt-3">
+                <div class="w-full bg-black/20 rounded-full h-2">
+                    <div id="disk-bar" class="progress-bar-glass h-2 rounded-full bg-gradient-to-r from-yellow-500 to-amber-400 transition-all duration-500 ease-out" style="width: 0%"></div>
+                </div>
+            </div>
+        </div>
+        <div class="card-glass p-4">
+            <div class="flex justify-between items-start">
+                <div>
+                    <p class="text-sm text-gray-300/80 mb-1">Network</p>
+                    <p class="text-2xl font-bold text-white/90" id="network-usage">--</p>
+                </div>
+                <i class="fas fa-network-wired text-purple-400 text-xl mt-1"></i>
+            </div>
+            <div class="mt-3">
+                <div class="w-full bg-black/20 rounded-full h-2">
+                    <div id="network-bar" class="progress-bar-glass h-2 rounded-full bg-gradient-to-r from-purple-500 to-pink-400 transition-all duration-500 ease-out" style="width: 0%"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Main Content Grid -->
+    <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        <!-- Left Column -->
+        <div class="lg:col-span-2 space-y-6">
+            <!-- Connection Information -->
+            <div class="card-glass p-6">
+                <h2 class="text-xl font-bold mb-4 text-white/90 flex items-center">
+                    <i class="fas fa-link mr-2 text-blue-400"></i>Connection Information
+                </h2>
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                        <label class="block text-sm font-medium text-gray-300/80 mb-1">SSH Host</label>
+                        <div class="flex">
+                            <input type="text" id="ssh-host" value="{{ server_ip }}"
+                                class="flex-1 p-3 border border-white/20 rounded-l-lg bg-black/20 text-white/90 backdrop-blur-lg focus:outline-none focus:ring-2 focus:ring-blue-500/50" readonly>
+                            <button onclick="copyToClipboard('ssh-host')"
+                                class="btn-glass bg-blue-500/20 hover:bg-blue-500/30 border-blue-400/30 px-3 rounded-r-lg transition-colors"
+                                aria-label="Copy SSH Host">
+                                <i class="fas fa-copy"></i>
+                            </button>
+                        </div>
+                    </div>
+                   
+                    <div>
+                        <label class="block text-sm font-medium text-gray-300/80 mb-1">SSH Port</label>
+                        <div class="flex">
+                            <input type="text" id="ssh-port" value="{{ vps.port }}"
+                                class="flex-1 p-3 border border-white/20 rounded-l-lg bg-black/20 text-white/90 backdrop-blur-lg focus:outline-none focus:ring-2 focus:ring-blue-500/50" readonly>
+                            <button onclick="copyToClipboard('ssh-port')"
+                                class="btn-glass bg-blue-500/20 hover:bg-blue-500/30 border-blue-400/30 px-3 rounded-r-lg transition-colors"
+                                aria-label="Copy SSH Port">
+                                <i class="fas fa-copy"></i>
+                            </button>
+                        </div>
+                    </div>
+                   
+                    <div>
+                        <label class="block text-sm font-medium text-gray-300/80 mb-1">Username</label>
+                        <div class="flex">
+                            <input type="text" id="ssh-username" value="{{ vps.username }}"
+                                class="flex-1 p-3 border border-white/20 rounded-l-lg bg-black/20 text-white/90 backdrop-blur-lg focus:outline-none focus:ring-2 focus:ring-blue-500/50" readonly>
+                            <button onclick="copyToClipboard('ssh-username')"
+                                class="btn-glass bg-blue-500/20 hover:bg-blue-500/30 border-blue-400/30 px-3 rounded-r-lg transition-colors"
+                                aria-label="Copy Username">
+                                <i class="fas fa-copy"></i>
+                            </button>
+                        </div>
+                    </div>
+                   
+                    <div>
+                        <label class="block text-sm font-medium text-gray-300/80 mb-1">Password</label>
+                        <div class="flex">
+                            <input type="password" id="ssh-password" value="{{ vps.password }}"
+                                class="flex-1 p-3 border border-white/20 rounded-l-lg bg-black/20 text-white/90 backdrop-blur-lg focus:outline-none focus:ring-2 focus:ring-blue-500/50" readonly>
+                            <button onclick="togglePassword()" class="btn-glass bg-blue-500/20 hover:bg-blue-500/30 border-blue-400/30 px-3 rounded-none transition-colors"
+                                aria-label="Toggle Password Visibility">
+                                <i class="fas fa-eye" id="password-toggle-icon"></i>
+                            </button>
+                            <button onclick="copyToClipboard('ssh-password')"
+                                class="btn-glass bg-blue-500/20 hover:bg-blue-500/30 border-blue-400/30 px-3 rounded-r-lg transition-colors"
+                                aria-label="Copy Password">
+                                <i class="fas fa-copy"></i>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+               
+                <div class="mt-6 flex flex-wrap gap-2">
+                    <a href="{{ url_for('vps_console', vps_id=vps.vps_id) }}"
+                        class="btn-glass flex items-center space-x-2 px-4 py-2">
+                        <i class="fas fa-terminal"></i>
+                        <span>Web Console</span>
+                    </a>
+                   
+                    <button onclick="changePassword('{{ vps.vps_id }}')"
+                        class="btn-glass flex items-center space-x-2 px-4 py-2">
+                        <i class="fas fa-key"></i>
+                        <span>Change Password</span>
+                    </button>
+                    {% if vps.tmate_session %}
+                    <button onclick="showTmateSession()"
+                        class="btn-glass flex items-center space-x-2 px-4 py-2 bg-purple-500/20 hover:bg-purple-500/30 border-purple-400/30">
+                        <i class="fas fa-terminal"></i>
+                        <span>Tmate Session</span>
+                    </button>
+                    {% endif %}
+                </div>
+            </div>
+
+            <!-- Resource Usage Charts -->
+            <div class="card-glass p-6">
+                <h2 class="text-xl font-bold mb-4 text-white/90 flex items-center">
+                    <i class="fas fa-chart-line mr-2 text-green-400"></i>Resource Usage History
+                </h2>
+                <div class="h-80 relative">
+                    <canvas id="resourceChart" aria-label="Resource usage chart showing CPU, Memory, and Disk over time"></canvas>
+                    <div id="chart-loading" class="absolute inset-0 flex items-center justify-center bg-black/20 rounded-lg hidden">
+                        <i class="fas fa-spinner fa-spin text-blue-400 text-2xl"></i>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Advanced Management Section -->
+            <div class="card-glass p-6">
+                <h2 class="text-xl font-bold mb-4 text-white/90 flex items-center">
+                    <i class="fas fa-cogs mr-2 text-yellow-400"></i>Advanced Management
+                </h2>
+                <div class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+                    <a href="{{ url_for('vps_file_manager', vps_id=vps.vps_id) }}"
+                        class="flex flex-col items-center justify-center p-4 border border-white/20 rounded-lg hover:bg-white/5 transition-all duration-300 backdrop-blur-lg hover:scale-105 hover:shadow-lg" aria-label="File Manager">
+                        <i class="fas fa-folder text-blue-400 text-2xl mb-2"></i>
+                        <span class="text-sm text-center text-white/80">File Manager</span>
+                    </a>
+                   
+                    <a href="{{ url_for('vps_processes', vps_id=vps.vps_id) }}"
+                        class="flex flex-col items-center justify-center p-4 border border-white/20 rounded-lg hover:bg-white/5 transition-all duration-300 backdrop-blur-lg hover:scale-105 hover:shadow-lg" aria-label="Processes">
+                        <i class="fas fa-tasks text-green-400 text-2xl mb-2"></i>
+                        <span class="text-sm text-center text-white/80">Processes</span>
+                    </a>
+                   
+                    <a href="{{ url_for('vps_services', vps_id=vps.vps_id) }}"
+                        class="flex flex-col items-center justify-center p-4 border border-white/20 rounded-lg hover:bg-white/5 transition-all duration-300 backdrop-blur-lg hover:scale-105 hover:shadow-lg" aria-label="Services">
+                        <i class="fas fa-cogs text-yellow-400 text-2xl mb-2"></i>
+                        <span class="text-sm text-center text-white/80">Services</span>
+                    </a>
+                   
+                    <a href="{{ url_for('vps_firewall', vps_id=vps.vps_id) }}"
+                        class="flex flex-col items-center justify-center p-4 border border-white/20 rounded-lg hover:bg-white/5 transition-all duration-300 backdrop-blur-lg hover:scale-105 hover:shadow-lg" aria-label="Firewall">
+                        <i class="fas fa-shield-alt text-red-400 text-2xl mb-2"></i>
+                        <span class="text-sm text-center text-white/80">Firewall</span>
+                    </a>
+                   
+                    <a href="{{ url_for('vps_view_logs', vps_id=vps.vps_id) }}"
+                        class="flex flex-col items-center justify-center p-4 border border-white/20 rounded-lg hover:bg-white/5 transition-all duration-300 backdrop-blur-lg hover:scale-105 hover:shadow-lg" aria-label="View Logs">
+                        <i class="fas fa-scroll text-pink-400 text-2xl mb-2"></i>
+                        <span class="text-sm text-center text-white/80">View Logs</span>
+                    </a>
+                </div>
+            </div>
+
+            <!-- Quick Actions Section -->
+            <div class="card-glass p-6">
+                <h2 class="text-xl font-bold mb-4 text-white/90 flex items-center">
+                    <i class="fas fa-bolt mr-2 text-teal-400"></i>Quick Actions
+                </h2>
+                <div class="grid grid-cols-2 md:grid-cols-3 gap-4">
+                    <button onclick="runBenchmark('{{ vps.vps_id }}')"
+                        class="flex flex-col items-center justify-center p-4 border border-white/20 rounded-lg hover:bg-white/5 transition-all duration-300 backdrop-blur-lg hover:scale-105 hover:shadow-lg" aria-label="Run Benchmark">
+                        <i class="fas fa-tachometer-alt text-orange-400 text-2xl mb-2"></i>
+                        <span class="text-sm text-center text-white/80">Benchmark</span>
+                    </button>
+                   
+                    <button onclick="securityScan('{{ vps.vps_id }}')"
+                        class="flex flex-col items-center justify-center p-4 border border-white/20 rounded-lg hover:bg-white/5 transition-all duration-300 backdrop-blur-lg hover:scale-105 hover:shadow-lg" aria-label="Security Scan">
+                        <i class="fas fa-virus text-pink-400 text-2xl mb-2"></i>
+                        <span class="text-sm text-center text-white/80">Security Scan</span>
+                    </button>
+                    <button onclick="tunePerformance('{{ vps.vps_id }}')"
+                        class="flex flex-col items-center justify-center p-4 border border-white/20 rounded-lg hover:bg-white/5 transition-all duration-300 backdrop-blur-lg hover:scale-105 hover:shadow-lg" aria-label="Tune Performance">
+                        <i class="fas fa-rocket text-teal-400 text-2xl mb-2"></i>
+                        <span class="text-sm text-center text-white/80">Tune Performance</span>
+                    </button>
+                    <button onclick="showCustomScriptModal()"
+                        class="flex flex-col items-center justify-center p-4 border border-white/20 rounded-lg hover:bg-white/5 transition-all duration-300 backdrop-blur-lg hover:scale-105 hover:shadow-lg" aria-label="Run Script">
+                        <i class="fas fa-code text-gray-400 text-2xl mb-2"></i>
+                        <span class="text-sm text-center text-white/80">Run Script</span>
+                    </button>
+                    <button onclick="setupAlerts('{{ vps.vps_id }}')"
+                        class="flex flex-col items-center justify-center p-4 border border-white/20 rounded-lg hover:bg-white/5 transition-all duration-300 backdrop-blur-lg hover:scale-105 hover:shadow-lg" aria-label="Setup Alerts">
+                        <i class="fas fa-bell text-yellow-400 text-2xl mb-2"></i>
+                        <span class="text-sm text-center text-white/80">Setup Alerts</span>
+                    </button>
+                    {% if is_admin %}
+                    <button onclick="cloudBackup('{{ vps.vps_id }}')"
+                        class="flex flex-col items-center justify-center p-4 border border-white/20 rounded-lg hover:bg-white/5 transition-all duration-300 backdrop-blur-lg hover:scale-105 hover:shadow-lg" aria-label="Cloud Backup">
+                        <i class="fas fa-cloud-upload-alt text-blue-400 text-2xl mb-2"></i>
+                        <span class="text-sm text-center text-white/80">Cloud Backup</span>
+                    </button>
+                    {% endif %}
+                </div>
+            </div>
+
+            <!-- Real-time System Information -->
+            <div class="card-glass p-6">
+                <h2 class="text-xl font-bold mb-4 text-white/90 flex items-center">
+                    <i class="fas fa-info-circle mr-2 text-purple-400"></i>Real-time System Info
+                </h2>
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                        <h3 class="font-semibold mb-2 text-gray-300 flex items-center">
+                            <i class="fas fa-memory mr-1 text-blue-400"></i>Memory Info
+                        </h3>
+                        <pre class="text-xs bg-black/20 p-3 rounded-lg backdrop-blur-lg text-white/80 overflow-auto max-h-32" id="memory-info">Loading...</pre>
+                    </div>
+                    <div id="disk-info-section" class="hidden">
+                        <h3 class="font-semibold mb-2 text-gray-300 flex items-center">
+                            <i class="fas fa-hdd mr-1 text-yellow-400"></i>Disk Info
+                        </h3>
+                        <pre class="text-xs bg-black/20 p-3 rounded-lg backdrop-blur-lg text-white/80 overflow-auto max-h-32" id="disk-info">Loading...</pre>
+                    </div>
+                    <div id="uptime-info-section" class="hidden">
+                        <h3 class="font-semibold mb-2 text-gray-300 flex items-center">
+                            <i class="fas fa-clock mr-1 text-green-400"></i>Uptime Info
+                        </h3>
+                        <pre class="text-xs bg-black/20 p-3 rounded-lg backdrop-blur-lg text-white/80 overflow-auto max-h-32" id="uptime-info">Loading...</pre>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Right Column -->
+        <div class="space-y-6">
+            <!-- VPS Information -->
+            <div class="card-glass p-6">
+                <h2 class="text-xl font-bold mb-4 text-white/90 flex items-center">
+                    <i class="fas fa-server mr-2 text-green-400"></i>VPS Information
+                </h2>
+                <div class="space-y-3">
+                    <div class="flex justify-between p-2 bg-black/10 rounded">
+                        <span class="text-gray-300/80">VPS ID:</span>
+                        <span class="font-medium text-white/90">{{ vps.vps_id }}</span>
+                    </div>
+                    <div class="flex justify-between p-2 bg-black/10 rounded">
+                        <span class="text-gray-300/80">Container ID:</span>
+                        <span class="font-medium text-sm text-white/80">{{ vps.container_id[:12] }}...</span>
+                    </div>
+                    <div class="flex justify-between p-2 bg-black/10 rounded">
+                        <span class="text-gray-300/80">Created:</span>
+                        <span class="font-medium text-white/80">{{ vps.created_at[:16] }}</span>
+                    </div>
+                    <div class="flex justify-between p-2 bg-black/10 rounded">
+                        <span class="text-gray-300/80">Expires:</span>
+                        <span class="font-medium {% if vps.status == 'expired' %}text-red-400{% else %}text-white/80{% endif %}">
+                            {{ vps.expires_at[:16] }}
+                        </span>
+                    </div>
+                    <div class="flex justify-between p-2 bg-black/10 rounded">
+                        <span class="text-gray-300/80">Restarts:</span>
+                        <span class="font-medium text-white/80">{{ vps.restart_count }}</span>
+                    </div>
+                    {% if vps.tags %}
+                    <div class="flex justify-between p-2 bg-black/10 rounded">
+                        <span class="text-gray-300/80">Tags:</span>
+                        <span class="font-medium text-white/80">{{ vps.tags }}</span>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+
+            <!-- Resource Configuration -->
+            <div class="card-glass p-6">
+                <h2 class="text-xl font-bold mb-4 text-white/90 flex items-center">
+                    <i class="fas fa-cpu mr-2 text-blue-400"></i>Resource Configuration
+                </h2>
+                <div class="space-y-3">
+                    <div class="flex justify-between p-2 bg-black/10 rounded">
+                        <span class="text-gray-300/80">Memory:</span>
+                        <span class="font-medium text-white/80">{{ vps.memory }} GB</span>
+                    </div>
+                    <div class="flex justify-between p-2 bg-black/10 rounded">
+                        <span class="text-gray-300/80">CPU Cores:</span>
+                        <span class="font-medium text-white/80">{{ vps.cpu }}</span>
+                    </div>
+                    <div class="flex justify-between p-2 bg-black/10 rounded">
+                        <span class="text-gray-300/80">Disk Space:</span>
+                        <span class="font-medium text-white/80">{{ vps.disk }} GB</span>
+                    </div>
+                    <div class="flex justify-between p-2 bg-black/10 rounded">
+                        <span class="text-gray-300/80">Bandwidth Limit:</span>
+                        <span class="font-medium text-white/80">
+                            {% if vps.bandwidth_limit > 0 %}
+                                {{ vps.bandwidth_limit }} GB
+                            {% else %}
+                                Unlimited
+                            {% endif %}
+                        </span>
+                    </div>
+                </div>
+               
+                {% if is_admin %}
+                <div class="mt-6">
+                    <button onclick="showUpgradeModal()"
+                        class="w-full btn-glass flex items-center justify-center space-x-2 py-3">
+                        <i class="fas fa-arrow-up"></i>
+                        <span>Upgrade Resources</span>
+                    </button>
+                </div>
+                {% endif %}
+            </div>
+
+            <!-- Port Management -->
+            <div class="card-glass p-6">
+                <h2 class="text-xl font-bold mb-4 text-white/90 flex items-center">
+                    <i class="fas fa-plug mr-2 text-purple-400"></i>Port Management
+                </h2>
+                <div class="space-y-2 max-h-48 overflow-y-auto">
+                    <div class="flex justify-between items-center p-3 bg-black/20 rounded-lg backdrop-blur-lg">
+                        <span class="text-white/80">SSH (22) → {{ vps.port }}</span>
+                        <span class="text-green-400"><i class="fas fa-check"></i> Active</span>
+                    </div>
+                   
+                    {% if vps.additional_ports %}
+                        {% for port_mapping in vps.additional_ports.split(',') %}
+                            {% if port_mapping %}
+                                {% set host_port = port_mapping.split(':')[0] %}
+                                {% set container_port = port_mapping.split(':')[1] %}
+                                <div class="flex justify-between items-center p-3 bg-black/20 rounded-lg backdrop-blur-lg">
+                                    <span class="text-white/80">{{ container_port }} → {{ host_port }}</span>
+                                    {% if is_admin %}
+                                    <button onclick="removePort('{{ vps.vps_id }}', '{{ host_port }}')"
+                                        class="text-red-400 hover:text-red-300 transition-colors p-1 rounded" aria-label="Remove Port {{ host_port }}">
+                                        <i class="fas fa-times"></i>
+                                    </button>
+                                    {% endif %}
+                                </div>
+                            {% endif %}
+                        {% endfor %}
+                    {% endif %}
+                </div>
+               
+                {% if is_admin %}
+                <div class="mt-6">
+                    <button onclick="showAddPortModal()"
+                        class="w-full btn-glass flex items-center justify-center space-x-2 py-3">
+                        <i class="fas fa-plus"></i>
+                        <span>Add Port</span>
+                    </button>
+                </div>
+                {% endif %}
+            </div>
+
+            <!-- Admin Tools -->
+            {% if is_admin %}
+            <div class="card-glass p-6">
+                <h2 class="text-xl font-bold mb-4 text-white/90 flex items-center">
+                    <i class="fas fa-tools mr-2 text-red-400"></i>Admin Tools
+                </h2>
+                <div class="space-y-2">
+                    <button onclick="showRunCommandModal()"
+                        class="w-full btn-glass flex items-center justify-center space-x-2 py-3 bg-gray-500/20 hover:bg-gray-500/30 border-gray-400/30">
+                        <i class="fas fa-terminal"></i>
+                        <span>Run Command</span>
+                    </button>
+                   
+                    <button onclick="cloneVPS('{{ vps.vps_id }}')"
+                        class="w-full btn-glass flex items-center justify-center space-x-2 py-3 bg-green-500/20 hover:bg-green-500/30 border-green-400/30">
+                        <i class="fas fa-copy"></i>
+                        <span>Clone VPS</span>
+                    </button>
+                   
+                    <button onclick="renewVPS('{{ vps.vps_id }}')"
+                        class="w-full btn-glass flex items-center justify-center space-x-2 py-3 bg-blue-500/20 hover:bg-blue-500/30 border-blue-400/30">
+                        <i class="fas fa-sync-alt"></i>
+                        <span>Renew VPS</span>
+                    </button>
+                    <a href="{{ url_for('vps_logs', vps_id=vps.vps_id) }}"
+                        class="w-full btn-glass flex items-center justify-center space-x-2 py-3 bg-purple-500/20 hover:bg-purple-500/30 border-purple-400/30 block text-center">
+                        <i class="fas fa-scroll"></i>
+                        <span>View Container Logs</span>
+                    </a>
+                </div>
+            </div>
+            {% endif %}
+
+            <!-- System Information -->
+            <div class="card-glass p-6">
+                <h2 class="text-xl font-bold mb-4 text-white/90 flex items-center">
+                    <i class="fas fa-desktop mr-2 text-indigo-400"></i>System Information
+                </h2>
+                <div class="space-y-2 text-sm">
+                    <div class="flex justify-between p-2 bg-black/10 rounded">
+                        <span class="text-gray-300/80">OS Image:</span>
+                        <span class="text-white/80">{{ vps.os_image }}</span>
+                    </div>
+                    <div class="flex justify-between p-2 bg-black/10 rounded">
+                        <span class="text-gray-300/80">Uptime:</span>
+                        <span id="uptime-display" class="text-white/80">--</span>
+                    </div>
+                    <div class="flex justify-between p-2 bg-black/10 rounded">
+                        <span class="text-gray-300/80">Last Restart:</span>
+                        <span class="text-white/80">
+                            {% if vps.last_restart %}
+                                {{ vps.last_restart[:16] }}
+                            {% else %}
+                                Never
+                            {% endif %}
+                        </span>
+                    </div>
+                    <div class="flex justify-between p-2 bg-black/10 rounded">
+                        <span class="text-gray-300/80">Image ID:</span>
+                        <span class="text-xs text-white/80">{{ vps.image_id[:20] }}...</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Modals -->
+<!-- Add Port Modal -->
+<div id="addPortModal" class="fixed inset-0 bg-black/50 backdrop-blur-lg hidden flex items-center justify-center z-50 p-4">
+    <div class="card-glass rounded-lg p-6 w-full max-w-md border border-white/20 animate-in fade-in zoom-in duration-200">
+        <h3 class="text-lg font-bold mb-4 text-white/90">Add Port Mapping</h3>
+        <form id="addPortForm">
+            <div class="space-y-4">
+                <div>
+                    <label class="block text-sm font-medium mb-1 text-gray-300/80">Host Port</label>
+                    <input type="number" name="host_port" class="w-full p-3 border border-white/20 rounded-lg bg-black/20 text-white/90 backdrop-blur-lg focus:outline-none focus:ring-2 focus:ring-blue-500/50"
+                           min="1000" max="65535" required placeholder="e.g., 8080">
+                </div>
+                <div>
+                    <label class="block text-sm font-medium mb-1 text-gray-300/80">Container Port</label>
+                    <input type="number" name="cont_port" class="w-full p-3 border border-white/20 rounded-lg bg-black/20 text-white/90 backdrop-blur-lg focus:outline-none focus:ring-2 focus:ring-blue-500/50"
+                           min="1" max="65535" required placeholder="e.g., 80" value="80">
+                </div>
+                <div>
+                    <label class="block text-sm font-medium mb-1 text-gray-300/80">Protocol</label>
+                    <select name="protocol" class="w-full p-3 border border-white/20 rounded-lg bg-black/20 text-white/90 backdrop-blur-lg focus:outline-none focus:ring-2 focus:ring-blue-500/50">
+                        <option value="tcp">TCP</option>
+                        <option value="udp">UDP</option>
+                    </select>
+                </div>
+            </div>
+            <div class="flex space-x-2 mt-6">
+                <button type="button" onclick="hideAddPortModal()"
+                    class="flex-1 p-3 border border-white/20 rounded-lg bg-black/20 text-white/90 hover:bg-white/5 transition-colors">Cancel</button>
+                <button type="submit" class="flex-1 btn-glass">Add Port</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- Upgrade Modal -->
+<div id="upgradeModal" class="fixed inset-0 bg-black/50 backdrop-blur-lg hidden flex items-center justify-center z-50 p-4">
+    <div class="card-glass rounded-lg p-6 w-full max-w-md border border-white/20 animate-in fade-in zoom-in duration-200">
+        <h3 class="text-lg font-bold mb-4 text-white/90">Upgrade VPS Resources</h3>
+        <form id="upgradeForm">
+            <div class="space-y-4">
+                <div>
+                    <label class="block text-sm font-medium mb-1 text-gray-300/80">Memory (GB)</label>
+                    <input type="number" name="memory" value="{{ vps.memory }}"
+                           class="w-full p-3 border border-white/20 rounded-lg bg-black/20 text-white/90 backdrop-blur-lg focus:outline-none focus:ring-2 focus:ring-blue-500/50" min="1" max="512" required>
+                </div>
+                <div>
+                    <label class="block text-sm font-medium mb-1 text-gray-300/80">CPU Cores</label>
+                    <input type="number" name="cpu" value="{{ vps.cpu }}"
+                           class="w-full p-3 border border-white/20 rounded-lg bg-black/20 text-white/90 backdrop-blur-lg focus:outline-none focus:ring-2 focus:ring-blue-500/50" min="1" max="32" required>
+                </div>
+                <div>
+                    <label class="block text-sm font-medium mb-1 text-gray-300/80">Disk Space (GB)</label>
+                    <input type="number" name="disk" value="{{ vps.disk }}"
+                           class="w-full p-3 border border-white/20 rounded-lg bg-black/20 text-white/90 backdrop-blur-lg focus:outline-none focus:ring-2 focus:ring-blue-500/50" min="10" max="1000" required>
+                </div>
+                <div>
+                    <label class="block text-sm font-medium mb-1 text-gray-300/80">Bandwidth Limit (GB)</label>
+                    <input type="number" name="bandwidth_limit" value="{{ vps.bandwidth_limit }}"
+                           class="w-full p-3 border border-white/20 rounded-lg bg-black/20 text-white/90 backdrop-blur-lg focus:outline-none focus:ring-2 focus:ring-blue-500/50" min="0">
+                    <p class="text-xs text-gray-400 mt-1">0 for unlimited</p>
+                </div>
+            </div>
+            <div class="flex space-x-2 mt-6">
+                <button type="button" onclick="hideUpgradeModal()"
+                    class="flex-1 p-3 border border-white/20 rounded-lg bg-black/20 text-white/90 hover:bg-white/5 transition-colors">Cancel</button>
+                <button type="submit" class="flex-1 btn-glass">Upgrade</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- Run Command Modal -->
+<div id="runCommandModal" class="fixed inset-0 bg-black/50 backdrop-blur-lg hidden flex items-center justify-center z-50 p-4">
+    <div class="card-glass rounded-lg p-6 w-full max-w-md border border-white/20 animate-in fade-in zoom-in duration-200">
+        <h3 class="text-lg font-bold mb-4 text-white/90">Run Command on VPS</h3>
+        <form id="runCommandForm">
+            <div class="space-y-4">
+                <div>
+                    <label class="block text-sm font-medium mb-1 text-gray-300/80">Command</label>
+                    <input type="text" name="command" class="w-full p-3 border border-white/20 rounded-lg bg-black/20 text-white/90 backdrop-blur-lg focus:outline-none focus:ring-2 focus:ring-blue-500/50"
+                           required placeholder="e.g., apt update && apt upgrade -y">
+                </div>
+            </div>
+            <div class="flex space-x-2 mt-6">
+                <button type="button" onclick="hideRunCommandModal()"
+                    class="flex-1 p-3 border border-white/20 rounded-lg bg-black/20 text-white/90 hover:bg-white/5 transition-colors">Cancel</button>
+                <button type="submit" class="flex-1 btn-glass">Run Command</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- Custom Script Modal -->
+<div id="customScriptModal" class="fixed inset-0 bg-black/50 backdrop-blur-lg hidden flex items-center justify-center z-50 p-4">
+    <div class="card-glass rounded-lg p-6 w-full max-w-lg border border-white/20 animate-in fade-in zoom-in duration-200">
+        <h3 class="text-lg font-bold mb-4 text-white/90">Run Custom Script</h3>
+        <form id="customScriptForm">
+            <div class="space-y-4">
+                <div>
+                    <label class="block text-sm font-medium mb-1 text-gray-300/80">Script</label>
+                    <textarea name="script" rows="8" class="w-full p-3 border border-white/20 rounded-lg bg-black/20 text-white/90 backdrop-blur-lg focus:outline-none focus:ring-2 focus:ring-blue-500/50 font-mono text-sm resize-vertical"
+                              required placeholder="Enter your bash script here..."></textarea>
+                </div>
+            </div>
+            <div class="flex space-x-2 mt-6">
+                <button type="button" onclick="hideCustomScriptModal()"
+                    class="flex-1 p-3 border border-white/20 rounded-lg bg-black/20 text-white/90 hover:bg-white/5 transition-colors">Cancel</button>
+                <button type="submit" class="flex-1 btn-glass">Run Script</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- Tmate Session Modal -->
+<div id="tmateModal" class="fixed inset-0 bg-black/50 backdrop-blur-lg hidden flex items-center justify-center z-50 p-4">
+    <div class="card-glass rounded-lg p-6 w-full max-w-md border border-white/20 animate-in fade-in zoom-in duration-200">
+        <h3 class="text-lg font-bold mb-4 text-white/90">Tmate Session</h3>
+        <div class="space-y-4">
+            <p class="text-sm text-gray-300/80">
+                Use the following command to connect to the Tmate session:
+            </p>
+            <div class="bg-black/20 p-3 rounded-lg backdrop-blur-lg">
+                <code class="text-sm break-all text-white/80 font-mono" id="tmate-command">{{ vps.tmate_session }}</code>
+            </div>
+            <button onclick="copyToClipboard('tmate-command')" class="w-full btn-glass py-3">
+                <i class="fas fa-copy mr-2"></i>Copy Command
+            </button>
+        </div>
+        <div class="mt-6">
+            <button onclick="hideTmateModal()" class="w-full p-3 border border-white/20 rounded-lg bg-black/20 text-white/90 hover:bg-white/5 transition-colors">
+                Close
+            </button>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script>
+    let resourceChart;
+    let statsInterval;
+    let isPasswordVisible = false;
+    let currentStats = {};
+
+    // Initialize on DOM load
+    document.addEventListener('DOMContentLoaded', function() {
+        initializeChart();
+        startRealTimeStats();
+        connectWebSocket();
+        updateSystemInfo();
+    });
+
+    function initializeChart() {
+        const ctx = document.getElementById('resourceChart').getContext('2d');
+        const loadingEl = document.getElementById('chart-loading');
+        loadingEl.classList.remove('hidden');
+
+        resourceChart = new Chart(ctx, {
+            type: 'line',
+            data: {
+                labels: [],
+                datasets: [
+                    {
+                        label: 'CPU %',
+                        data: [],
+                        borderColor: '#3b82f6',
+                        backgroundColor: 'rgba(59, 130, 246, 0.1)',
+                        tension: 0.4,
+                        fill: true,
+                        pointRadius: 3,
+                        pointHoverRadius: 5
+                    },
+                    {
+                        label: 'Memory %',
+                        data: [],
+                        borderColor: '#10b981',
+                        backgroundColor: 'rgba(16, 185, 129, 0.1)',
+                        tension: 0.4,
+                        fill: true,
+                        pointRadius: 3,
+                        pointHoverRadius: 5
+                    },
+                    {
+                        label: 'Disk %',
+                        data: [],
+                        borderColor: '#f59e0b',
+                        backgroundColor: 'rgba(245, 158, 11, 0.1)',
+                        tension: 0.4,
+                        fill: true,
+                        pointRadius: 3,
+                        pointHoverRadius: 5
+                    }
+                ]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                animation: {
+                    duration: 500,
+                    easing: 'easeOutQuart'
+                },
+                interaction: {
+                    intersect: false,
+                    mode: 'index'
+                },
+                scales: {
+                    y: {
+                        beginAtZero: true,
+                        max: 100,
+                        grid: {
+                            color: 'rgba(156, 163, 175, 0.2)'
+                        },
+                        ticks: {
+                            color: 'rgba(255, 255, 255, 0.7)',
+                            callback: function(value) {
+                                return value + '%';
+                            }
+                        }
+                    },
+                    x: {
+                        grid: {
+                            display: false
+                        },
+                        ticks: {
+                            color: 'rgba(255, 255, 255, 0.7)',
+                            maxTicksLimit: 10
+                        }
+                    }
+                },
+                plugins: {
+                    legend: {
+                        position: 'top',
+                        labels: {
+                            color: 'rgba(255, 255, 255, 0.8)',
+                            usePointStyle: true,
+                            padding: 20
+                        }
+                    },
+                    tooltip: {
+                        backgroundColor: 'rgba(15, 23, 42, 0.9)',
+                        titleColor: 'white',
+                        bodyColor: 'rgba(255, 255, 255, 0.8)',
+                        borderColor: 'rgba(255, 255, 255, 0.2)',
+                        borderWidth: 1,
+                        cornerRadius: 8
+                    }
+                }
+            }
+        });
+
+        // Hide loading after initial update
+        setTimeout(() => {
+            loadingEl.classList.add('hidden');
+        }, 1000);
+    }
+
+    function startRealTimeStats() {
+        updateStats();
+        statsInterval = setInterval(updateStats, 5000);
+    }
+
+    async function updateStats() {
+        try {
+            const response = await fetch(`/vps/{{ vps.vps_id }}/stats`);
+            if (!response.ok) throw new Error('Failed to fetch stats');
+            currentStats = await response.json();
+            if (currentStats.error) throw new Error(currentStats.error);
+
+            updateResourceBars(currentStats);
+            updateResourceChart(currentStats);
+            updateUptime(currentStats);
+            updateSystemInfoDisplay(currentStats);
+        } catch (error) {
+            console.error('Error fetching stats:', error);
+            showNotification('Failed to update stats: ' + error.message, 'error');
+        }
+    }
+
+    function updateSystemInfo() {
+        updateStats();
+    }
+
+    function updateSystemInfoDisplay(stats) {
+        const memoryEl = document.getElementById('memory-info');
+        const diskSection = document.getElementById('disk-info-section');
+        const diskEl = document.getElementById('disk-info');
+        const uptimeSection = document.getElementById('uptime-info-section');
+        const uptimeEl = document.getElementById('uptime-info');
+
+        if (stats.internal && stats.internal.free) {
+            memoryEl.textContent = stats.internal.free;
+        }
+
+        if (stats.internal && stats.internal.df) {
+            diskEl.textContent = stats.internal.df;
+            diskSection.classList.remove('hidden');
+        } else {
+            diskSection.classList.add('hidden');
+        }
+
+        if (stats.internal && stats.internal.uptime) {
+            uptimeEl.textContent = stats.internal.uptime;
+            uptimeSection.classList.remove('hidden');
+        } else {
+            uptimeSection.classList.add('hidden');
+        }
+    }
+
+    function updateResourceBars(stats) {
+        // CPU
+        const cpuPercent = stats.cpu?.percent || 0;
+        document.getElementById('cpu-usage').textContent = cpuPercent.toFixed(1) + '%';
+        document.getElementById('cpu-bar').style.width = Math.min(cpuPercent, 100) + '%';
+
+        // Memory
+        const memPercent = stats.memory?.percent || 0;
+        document.getElementById('memory-usage').textContent = memPercent.toFixed(1) + '%';
+        document.getElementById('memory-bar').style.width = Math.min(memPercent, 100) + '%';
+
+        // Disk
+        const diskPercent = stats.disk?.percent || 0;
+        document.getElementById('disk-usage').textContent = diskPercent.toFixed(1) + '%';
+        document.getElementById('disk-bar').style.width = Math.min(diskPercent, 100) + '%';
+
+        // Network
+        const networkIn = stats.network?.in_mb || 0;
+        const networkOut = stats.network?.out_mb || 0;
+        document.getElementById('network-usage').textContent = `${networkIn.toFixed(1)} MB ↓ / ${networkOut.toFixed(1)} MB ↑`;
+
+        // Improved network bar: scale based on a reasonable threshold (e.g., 100 MB total for 100%)
+        const networkTotal = networkIn + networkOut;
+        const networkPercent = Math.min((networkTotal / 100) * 100, 100);
+        document.getElementById('network-bar').style.width = networkPercent + '%';
+    }
+
+    function updateResourceChart(stats) {
+        if (!resourceChart) return;
+
+        const now = new Date();
+        const timeLabel = now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+
+        // Add new data points only if stats are valid
+        resourceChart.data.labels.push(timeLabel);
+        resourceChart.data.datasets[0].data.push(stats.cpu?.percent || 0);
+        resourceChart.data.datasets[1].data.push(stats.memory?.percent || 0);
+        resourceChart.data.datasets[2].data.push(stats.disk?.percent || 0);
+
+        // Keep only last 20 data points
+        if (resourceChart.data.labels.length > 20) {
+            resourceChart.data.labels.shift();
+            resourceChart.data.datasets.forEach(dataset => dataset.data.shift());
+        }
+
+        resourceChart.update('none'); // No animation for frequent updates
+    }
+
+    function updateUptime(stats) {
+        if (!stats.uptime) return;
+
+        let uptimeSeconds;
+        try {
+            const uptimeDate = new Date(stats.uptime);
+            uptimeSeconds = Math.floor((Date.now() - uptimeDate) / 1000);
+        } catch {
+            // Fallback if uptime is seconds string
+            uptimeSeconds = parseInt(stats.uptime, 10) || 0;
+        }
+
+        const days = Math.floor(uptimeSeconds / 86400);
+        const hours = Math.floor((uptimeSeconds % 86400) / 3600);
+        const minutes = Math.floor((uptimeSeconds % 3600) / 60);
+
+        let uptimeText = '';
+        if (days > 0) uptimeText += `${days}d `;
+        if (hours > 0) uptimeText += `${hours}h `;
+        uptimeText += `${minutes}m`;
+
+        document.getElementById('uptime-display').textContent = uptimeText || '--';
+    }
+
+    function connectWebSocket() {
+        // Placeholder for WebSocket; implement as needed
+        console.log('WebSocket ready for real-time updates');
+    }
+
+    // VPS Management Functions with Loading States
+    async function startVPS(vpsId) {
+        const btn = event.target.closest('button');
+        if (!confirm('Are you sure you want to start this VPS?')) return;
+        setButtonLoading(btn, true);
+
+        try {
+            const response = await fetch(`/vps/${vpsId}/start`);
+            const data = await response.json();
+            if (data.message) {
+                showNotification('VPS started successfully', 'success');
+                setTimeout(() => location.reload(), 1500);
+            } else {
+                throw new Error(data.error || 'Failed to start VPS');
+            }
+        } catch (error) {
+            showNotification('Error: ' + error.message, 'error');
+        } finally {
+            setButtonLoading(btn, false);
+        }
+    }
+
+    async function stopVPS(vpsId) {
+        const btn = event.target.closest('button');
+        if (!confirm('Are you sure you want to stop this VPS?')) return;
+        setButtonLoading(btn, true);
+
+        try {
+            const response = await fetch(`/vps/${vpsId}/stop`);
+            const data = await response.json();
+            if (data.message) {
+                showNotification('VPS stopped successfully', 'success');
+                setTimeout(() => location.reload(), 1500);
+            } else {
+                throw new Error(data.error || 'Failed to stop VPS');
+            }
+        } catch (error) {
+            showNotification('Error: ' + error.message, 'error');
+        } finally {
+            setButtonLoading(btn, false);
+        }
+    }
+
+    async function restartVPS(vpsId) {
+        const btn = event.target.closest('button');
+        if (!confirm('Are you sure you want to restart this VPS?')) return;
+        setButtonLoading(btn, true);
+
+        try {
+            const response = await fetch(`/vps/${vpsId}/restart`);
+            const data = await response.json();
+            if (data.message) {
+                showNotification('VPS restarted successfully', 'success');
+                setTimeout(() => location.reload(), 2500);
+            } else {
+                throw new Error(data.error || 'Failed to restart VPS');
+            }
+        } catch (error) {
+            showNotification('Error: ' + error.message, 'error');
+        } finally {
+            setButtonLoading(btn, false);
+        }
+    }
+
+    async function deleteVPS(vpsId) {
+        if (!confirm('WARNING: This will permanently delete the VPS and all its data. This action cannot be undone!')) return;
+        const btn = event.target.closest('button');
+        setButtonLoading(btn, true);
+
+        try {
+            const response = await fetch(`/vps/${vpsId}/delete`, { method: 'POST' });
+            const data = await response.json();
+            if (data.message) {
+                showNotification('VPS deleted successfully', 'success');
+                setTimeout(() => window.location.href = '/dashboard', 1500);
+            } else {
+                throw new Error(data.error || 'Failed to delete VPS');
+            }
+        } catch (error) {
+            showNotification('Error: ' + error.message, 'error');
+        } finally {
+            setButtonLoading(btn, false);
+        }
+    }
+
+    async function changePassword(vpsId) {
+        if (!confirm('Are you sure you want to change the VPS password?')) return;
+        const btn = event.target.closest('button');
+        setButtonLoading(btn, true);
+
+        try {
+            const response = await fetch(`/vps/${vpsId}/change_password`, { method: 'POST' });
+            const data = await response.json();
+            if (data.message && data.password) {
+                document.getElementById('ssh-password').value = data.password;
+                showNotification('Password changed successfully', 'success');
+            } else {
+                throw new Error(data.error || 'Failed to change password');
+            }
+        } catch (error) {
+            showNotification('Error: ' + error.message, 'error');
+        } finally {
+            setButtonLoading(btn, false);
+        }
+    }
+
+    // Admin Functions
+    async function renewVPS(vpsId) {
+        if (!confirm('Are you sure you want to renew this VPS for 30 days?')) return;
+        const btn = event.target.closest('button');
+        setButtonLoading(btn, true);
+
+        try {
+            const response = await fetch(`/vps/${vpsId}/renew`);
+            const data = await response.json();
+            if (data.message) {
+                showNotification('VPS renewed successfully', 'success');
+                setTimeout(() => location.reload(), 1500);
+            } else {
+                throw new Error(data.error || 'Failed to renew VPS');
+            }
+        } catch (error) {
+            showNotification('Error: ' + error.message, 'error');
+        } finally {
+            setButtonLoading(btn, false);
+        }
+    }
+
+    async function cloneVPS(vpsId) {
+        if (!confirm('Are you sure you want to clone this VPS? This will create an exact copy.')) return;
+        const btn = event.target.closest('button');
+        setButtonLoading(btn, true);
+
+        try {
+            const response = await fetch(`/vps/${vpsId}/clone`, { method: 'POST' });
+            if (response.ok) {
+                showNotification('VPS cloned successfully', 'success');
+                const html = await response.text();
+                document.open();
+                document.write(html);
+                document.close();
+            } else {
+                const data = await response.json();
+                throw new Error(data.error || 'Clone failed');
+            }
+        } catch (error) {
+            showNotification('Error: ' + error.message, 'error');
+        } finally {
+            setButtonLoading(btn, false);
+        }
+    }
+
+    // Port Management
+    function showAddPortModal() {
+        document.getElementById('addPortModal').classList.remove('hidden');
+        document.body.style.overflow = 'hidden'; // Prevent scroll
+    }
+
+    function hideAddPortModal() {
+        document.getElementById('addPortModal').classList.add('hidden');
+        document.body.style.overflow = '';
+    }
+
+    document.getElementById('addPortForm')?.addEventListener('submit', async function(e) {
+        e.preventDefault();
+        const submitBtn = e.target.querySelector('button[type="submit"]');
+        setButtonLoading(submitBtn, true);
+
+        try {
+            const formData = new FormData(this);
+            const response = await fetch(`/vps/{{ vps.vps_id }}/add_port`, {
+                method: 'POST',
+                body: formData
+            });
+            const data = await response.json();
+            if (data.message) {
+                showNotification('Port added successfully', 'success');
+                hideAddPortModal();
+                setTimeout(() => location.reload(), 1500);
+            } else {
+                throw new Error(data.error || 'Failed to add port');
+            }
+        } catch (error) {
+            showNotification('Error: ' + error.message, 'error');
+        } finally {
+            setButtonLoading(submitBtn, false);
+        }
+    });
+
+    async function removePort(vpsId, hostPort) {
+        if (!confirm('Are you sure you want to remove this port mapping?')) return;
+        const btn = event.target.closest('button');
+        setButtonLoading(btn, true);
+
+        try {
+            const formData = new FormData();
+            formData.append('host_port', hostPort);
+            const response = await fetch(`/vps/${vpsId}/remove_port`, {
+                method: 'POST',
+                body: formData
+            });
+            const data = await response.json();
+            if (data.message) {
+                showNotification('Port removed successfully', 'success');
+                setTimeout(() => location.reload(), 1500);
+            } else {
+                throw new Error(data.error || 'Failed to remove port');
+            }
+        } catch (error) {
+            showNotification('Error: ' + error.message, 'error');
+        } finally {
+            setButtonLoading(btn, false);
+        }
+    }
+
+    // Upgrade Functions
+    function showUpgradeModal() {
+        document.getElementById('upgradeModal').classList.remove('hidden');
+        document.body.style.overflow = 'hidden';
+    }
+
+    function hideUpgradeModal() {
+        document.getElementById('upgradeModal').classList.add('hidden');
+        document.body.style.overflow = '';
+    }
+
+    document.getElementById('upgradeForm')?.addEventListener('submit', async function(e) {
+        e.preventDefault();
+        const submitBtn = e.target.querySelector('button[type="submit"]');
+        setButtonLoading(submitBtn, true);
+
+        try {
+            const formData = new FormData(this);
+            const response = await fetch(`/vps/{{ vps.vps_id }}/upgrade`, {
+                method: 'POST',
+                body: formData
+            });
+            const data = await response.json();
+            if (data.message) {
+                showNotification('VPS upgraded successfully', 'success');
+                hideUpgradeModal();
+                setTimeout(() => location.reload(), 2500);
+            } else {
+                throw new Error(data.error || 'Failed to upgrade VPS');
+            }
+        } catch (error) {
+            showNotification('Error: ' + error.message, 'error');
+        } finally {
+            setButtonLoading(submitBtn, false);
+        }
+    });
+
+    // Command Execution
+    function showRunCommandModal() {
+        document.getElementById('runCommandModal').classList.remove('hidden');
+        document.body.style.overflow = 'hidden';
+    }
+
+    function hideRunCommandModal() {
+        document.getElementById('runCommandModal').classList.add('hidden');
+        document.body.style.overflow = '';
+    }
+
+    document.getElementById('runCommandForm')?.addEventListener('submit', async function(e) {
+        e.preventDefault();
+        const submitBtn = e.target.querySelector('button[type="submit"]');
+        setButtonLoading(submitBtn, true);
+
+        try {
+            const formData = new FormData(this);
+            const response = await fetch(`/vps/{{ vps.vps_id }}/run_command`, {
+                method: 'POST',
+                body: formData
+            });
+            const data = await response.json();
+            if (data.success) {
+                showNotification('Command executed successfully', 'success');
+                alert('Command Output:\n\n' + (data.output || 'No output'));
+                hideRunCommandModal();
+            } else {
+                throw new Error(data.error || 'Command failed');
+            }
+        } catch (error) {
+            showNotification('Error: ' + error.message, 'error');
+        } finally {
+            setButtonLoading(submitBtn, false);
+        }
+    });
+
+    // Custom Script Execution
+    function showCustomScriptModal() {
+        document.getElementById('customScriptModal').classList.remove('hidden');
+        document.body.style.overflow = 'hidden';
+    }
+
+    function hideCustomScriptModal() {
+        document.getElementById('customScriptModal').classList.add('hidden');
+        document.body.style.overflow = '';
+    }
+
+    document.getElementById('customScriptForm')?.addEventListener('submit', async function(e) {
+        e.preventDefault();
+        const submitBtn = e.target.querySelector('button[type="submit"]');
+        setButtonLoading(submitBtn, true);
+
+        try {
+            const formData = new FormData(this);
+            const response = await fetch(`/vps/{{ vps.vps_id }}/run_script`, {
+                method: 'POST',
+                body: formData
+            });
+            const data = await response.json();
+            if (data.success) {
+                showNotification('Script executed successfully', 'success');
+                alert('Script Output:\n\n' + (data.output || 'No output'));
+                hideCustomScriptModal();
+            } else {
+                throw new Error(data.error || 'Script failed');
+            }
+        } catch (error) {
+            showNotification('Error: ' + error.message, 'error');
+        } finally {
+            setButtonLoading(submitBtn, false);
+        }
+    });
+
+    // Tmate Session
+    function showTmateSession() {
+        document.getElementById('tmateModal').classList.remove('hidden');
+        document.body.style.overflow = 'hidden';
+    }
+
+    function hideTmateModal() {
+        document.getElementById('tmateModal').classList.add('hidden');
+        document.body.style.overflow = '';
+    }
+
+    // Advanced Features with Loading
+    async function tunePerformance(vpsId) {
+        if (!confirm('This will tune system performance settings. Continue?')) return;
+        const btn = event.target.closest('button');
+        setButtonLoading(btn, true);
+
+        try {
+            const response = await fetch(`/vps/${vpsId}/tune_performance`, { method: 'POST' });
+            const data = await response.json();
+            if (data.success) {
+                showNotification('Performance tuned successfully', 'success');
+                if (data.output) alert('Tuning Output:\n\n' + data.output);
+            } else {
+                throw new Error(data.error || 'Tuning failed');
+            }
+        } catch (error) {
+            showNotification('Error: ' + error.message, 'error');
+        } finally {
+            setButtonLoading(btn, false);
+        }
+    }
+
+    async function cloudBackup(vpsId) {
+        if (!confirm('This will create a cloud backup of the VPS. Continue?')) return;
+        const btn = event.target.closest('button');
+        setButtonLoading(btn, true);
+
+        try {
+            const response = await fetch(`/vps/${vpsId}/cloud_backup`, { method: 'POST' });
+            const data = await response.json();
+            if (data.message) {
+                showNotification('Cloud backup created successfully', 'success');
+            } else {
+                throw new Error(data.error || 'Backup failed');
+            }
+        } catch (error) {
+            showNotification('Error: ' + error.message, 'error');
+        } finally {
+            setButtonLoading(btn, false);
+        }
+    }
+
+    async function setupAlerts(vpsId) {
+        if (!confirm('This will set up basic monitoring alerts. Continue?')) return;
+        const btn = event.target.closest('button');
+        setButtonLoading(btn, true);
+
+        try {
+            const response = await fetch(`/vps/${vpsId}/setup_alerts`, { method: 'POST' });
+            const data = await response.json();
+            if (data.success) {
+                showNotification('Alerts set up successfully', 'success');
+            } else {
+                throw new Error(data.error || 'Alert setup failed');
+            }
+        } catch (error) {
+            showNotification('Error: ' + error.message, 'error');
+        } finally {
+            setButtonLoading(btn, false);
+        }
+    }
+
+    async function runBenchmark(vpsId) {
+        if (!confirm('This will run a CPU benchmark on the VPS. Continue?')) return;
+        const btn = event.target.closest('button');
+        setButtonLoading(btn, true);
+
+        try {
+            const response = await fetch(`/vps/${vpsId}/benchmark`, { method: 'POST' });
+            const data = await response.json();
+            if (data.output) {
+                alert('Benchmark Results:\n\n' + data.output);
+            } else {
+                throw new Error(data.error || 'Benchmark failed');
+            }
+        } catch (error) {
+            alert('Error: ' + error.message);
+        } finally {
+            setButtonLoading(btn, false);
+        }
+    }
+
+    async function securityScan(vpsId) {
+        if (!confirm('This will run a security scan on the VPS. This may take several minutes. Continue?')) return;
+        const btn = event.target.closest('button');
+        setButtonLoading(btn, true);
+
+        try {
+            const response = await fetch(`/vps/${vpsId}/security_scan`, { method: 'POST' });
+            const data = await response.json();
+            if (data.output) {
+                alert('Security Scan Results:\n\n' + data.output);
+            } else {
+                throw new Error(data.error || 'Scan failed');
+            }
+        } catch (error) {
+            alert('Error: ' + error.message);
+        } finally {
+            setButtonLoading(btn, false);
+        }
+    }
+
+    // Utility Functions
+    function copyToClipboard(elementId) {
+        const element = document.getElementById(elementId);
+        if (!element) return;
+
+        let textToCopy;
+        if (element.tagName === 'INPUT' || element.tagName === 'TEXTAREA') {
+            textToCopy = element.value;
+            element.select();
+            element.setSelectionRange(0, 99999);
+        } else {
+            textToCopy = element.textContent || element.innerText;
+            const tempTextArea = document.createElement('textarea');
+            tempTextArea.value = textToCopy;
+            tempTextArea.style.position = 'fixed';
+            tempTextArea.style.left = '-999999px';
+            document.body.appendChild(tempTextArea);
+            tempTextArea.focus();
+            tempTextArea.select();
+            document.body.removeChild(tempTextArea);
+        }
+
+        try {
+            document.execCommand('copy');
+            showNotification('Copied to clipboard!', 'success');
+        } catch (err) {
+            console.error('Failed to copy: ', err);
+            showNotification('Failed to copy to clipboard', 'error');
+        }
+    }
+
+    function togglePassword() {
+        const passwordField = document.getElementById('ssh-password');
+        const iconEl = document.getElementById('password-toggle-icon');
+        isPasswordVisible = !isPasswordVisible;
+        passwordField.type = isPasswordVisible ? 'text' : 'password';
+        iconEl.className = isPasswordVisible ? 'fas fa-eye-slash' : 'fas fa-eye';
+    }
+
+    function setButtonLoading(btn, loading) {
+        if (loading) {
+            btn.disabled = true;
+            btn.innerHTML = '<i class="fas fa-spinner fa-spin mr-2"></i><span>Loading...</span>';
+            btn.classList.add('opacity-75', 'cursor-not-allowed');
+        } else {
+            btn.disabled = false;
+            // Restore original content (this is simplistic; in production, store original HTML)
+            btn.innerHTML = btn.dataset.originalHtml || btn.innerHTML;
+            btn.classList.remove('opacity-75', 'cursor-not-allowed');
+        }
+    }
+
+    function showNotification(message, type) {
+        const notification = document.createElement('div');
+        notification.className = `fixed top-4 right-4 p-4 rounded-lg shadow-xl z-50 backdrop-blur-lg border border-white/20 max-w-sm animate-in slide-in-from-top fade-in duration-200 ${
+            type === 'success' ? 'bg-green-500/20 text-green-300 border-green-400/30' : 'bg-red-500/20 text-red-300 border-red-400/30'
+        }`;
+        notification.innerHTML = `
+            <div class="flex items-center">
+                <i class="fas ${type === 'success' ? 'fa-check-circle' : 'fa-exclamation-triangle'} mr-2"></i>
+                <span>${message}</span>
+            </div>
+        `;
+
+        document.body.appendChild(notification);
+
+        setTimeout(() => {
+            notification.classList.add('animate-out', 'fade-out');
+            setTimeout(() => notification.remove(), 200);
+        }, 3000);
+    }
+
+    // Cleanup
+    window.addEventListener('beforeunload', function() {
+        if (statsInterval) clearInterval(statsInterval);
+        if (typeof socket !== 'undefined' && socket) socket.disconnect();
+        document.body.style.overflow = '';
+    });
+
+    // Close modals on escape key
+    document.addEventListener('keydown', function(e) {
+        if (e.key === 'Escape') {
+            const modals = document.querySelectorAll('[id$="Modal"]:not(.hidden)');
+            modals.forEach(modal => modal.classList.add('hidden'));
+            document.body.style.overflow = '';
+        }
+    });
+
+    // Store original button HTML for loading states (run after DOM load)
+    document.querySelectorAll('button[onclick]').forEach(btn => {
+        btn.dataset.originalHtml = btn.innerHTML;
+    });
+</script>
+
+<style>
+    .card-glass {
+        background: rgba(15, 23, 42, 0.8);
+        backdrop-filter: blur(20px);
+        border: 1px solid rgba(255, 255, 255, 0.1);
+        border-radius: 16px;
+        box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+        transition: all 0.3s ease;
+    }
+
+    .card-glass:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.2);
+    }
+   
+    .btn-glass {
+        background: rgba(255, 255, 255, 0.1);
+        backdrop-filter: blur(20px);
+        border: 1px solid rgba(255, 255, 255, 0.2);
+        color: white;
+        padding: 8px 16px;
+        border-radius: 12px;
+        transition: all 0.3s ease;
+        font-weight: 500;
+        min-height: 44px;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+    }
+
+    .btn-glass:hover:not(:disabled) {
+        background: rgba(255, 255, 255, 0.15);
+        border-color: rgba(255, 255, 255, 0.3);
+        transform: translateY(-1px);
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+    }
+
+    .btn-glass:disabled {
+        opacity: 0.5;
+        cursor: not-allowed;
+        transform: none;
+    }
+   
+    .progress-bar-glass {
+        backdrop-filter: blur(10px);
+        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+        transition: width 0.5s ease-out;
+    }
+
+    pre {
+        white-space: pre-wrap;
+        word-break: break-all;
+    }
+
+    /* Animation utilities */
+    @keyframes fade-in {
+        from { opacity: 0; }
+        to { opacity: 1; }
+    }
+
+    @keyframes zoom-in {
+        from { transform: scale(0.95); }
+        to { transform: scale(1); }
+    }
+
+    @keyframes slide-in-from-top {
+        from { transform: translateY(-100%); opacity: 0; }
+        to { transform: translateY(0); opacity: 1; }
+    }
+
+    @keyframes fade-out {
+        from { opacity: 1; }
+        to { opacity: 0; }
+    }
+
+    .animate-in {
+        animation: fade-in 0.2s ease-out;
+    }
+
+    .animate-out {
+        animation: fade-out 0.2s ease-in forwards;
+    }
+
+    body {
+        background: linear-gradient(135deg, #0f172a 0%, #1e293b 50%, #334155 100%);
+        min-height: 100vh;
+        font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    }
+
+    /* Scrollbar styling */
+    ::-webkit-scrollbar {
+        width: 6px;
+    }
+
+    ::-webkit-scrollbar-track {
+        background: rgba(0, 0, 0, 0.2);
+    }
+
+    ::-webkit-scrollbar-thumb {
+        background: rgba(255, 255, 255, 0.2);
+        border-radius: 3px;
+    }
+
+    ::-webkit-scrollbar-thumb:hover {
+        background: rgba(255, 255, 255, 0.3);
+    }
+</style>
+{% endblock %}

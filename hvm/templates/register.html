@@ -1,0 +1,104 @@
+{% extends "base.html" %}
+
+{% block title %}Register - {{ panel_name }}{% endblock %}
+
+{% block content %}
+<div class="min-h-screen flex items-center justify-center py-12 px-4 sm:px-6 lg:px-8 bg-transparent">
+    <div class="max-w-md w-full space-y-8">
+        <div>
+            <div class="text-center">
+                <i class="fas fa-user-plus text-6xl text-blue-400 mb-4"></i>
+                <h2 class="text-3xl font-extrabold text-white">Create Account</h2>
+                <p class="mt-2 text-gray-300">Join {{ panel_name }} today</p>
+            </div>
+        </div>
+        
+        <!-- Maintenance Mode Notice -->
+        {% if db.get_setting('maintenance_mode', 'off') == 'on' %}
+        <div class="bg-yellow-950 border border-yellow-800 rounded-lg p-4">
+            <div class="flex items-center">
+                <i class="fas fa-tools text-yellow-400 mr-3"></i>
+                <div>
+                    <h3 class="font-semibold text-yellow-200">Maintenance Mode</h3>
+                    <p class="text-yellow-300 text-sm mt-1">
+                        Registration is temporarily disabled while we perform maintenance.
+                        Please check back later.
+                    </p>
+                </div>
+            </div>
+        </div>
+        {% elif db.get_setting('registration_enabled', 'on') == 'off' %}
+        <div class="bg-red-950 border border-red-800 rounded-lg p-4">
+            <div class="flex items-center">
+                <i class="fas fa-ban text-red-400 mr-3"></i>
+                <div>
+                    <h3 class="font-semibold text-red-200">Registration Disabled</h3>
+                    <p class="text-red-300 text-sm mt-1">
+                        New user registration is currently disabled.
+                        Please contact an administrator for access.
+                    </p>
+                </div>
+            </div>
+        </div>
+        {% else %}
+        
+        <form class="mt-8 space-y-6 bg-gray-800 rounded-lg p-8" method="POST">
+            {% if error %}
+            <div class="bg-red-900 border border-red-800 text-red-200 px-4 py-3 rounded">
+                {{ error }}
+            </div>
+            {% endif %}
+            
+            <div class="space-y-4">
+                <div>
+                    <label for="username" class="block text-sm font-medium text-gray-300">Username</label>
+                    <input id="username" name="username" type="text" required 
+                           class="mt-1 block w-full px-3 py-2 border border-gray-600 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 bg-gray-700 text-white placeholder-gray-400">
+                </div>
+                
+                <div>
+                    <label for="email" class="block text-sm font-medium text-gray-300">Email</label>
+                    <input id="email" name="email" type="email" required 
+                           class="mt-1 block w-full px-3 py-2 border border-gray-600 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 bg-gray-700 text-white placeholder-gray-400">
+                </div>
+                
+                <div>
+                    <label for="password" class="block text-sm font-medium text-gray-300">Password</label>
+                    <input id="password" name="password" type="password" required 
+                           class="mt-1 block w-full px-3 py-2 border border-gray-600 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 bg-gray-700 text-white placeholder-gray-400">
+                    <p class="mt-1 text-sm text-gray-400">Minimum 8 characters</p>
+                </div>
+                
+                <div>
+                    <label for="confirm_password" class="block text-sm font-medium text-gray-300">Confirm Password</label>
+                    <input id="confirm_password" name="confirm_password" type="password" required 
+                           class="mt-1 block w-full px-3 py-2 border border-gray-600 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 bg-gray-700 text-white placeholder-gray-400">
+                </div>
+
+                <div>
+                    <label for="referral_code" class="block text-sm font-medium text-gray-300">Referral Code (Optional)</label>
+                    <input id="referral_code" name="referral_code" type="text"
+                           class="mt-1 block w-full px-3 py-2 border border-gray-600 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 bg-gray-700 text-white placeholder-gray-400">
+                </div>
+            </div>
+
+            <div>
+                <button type="submit" 
+                        class="group relative w-full flex justify-center py-2 px-4 border border-transparent text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition duration-200">
+                    <span class="absolute left-0 inset-y-0 flex items-center pl-3">
+                        <i class="fas fa-user-plus"></i>
+                    </span>
+                    Create Account
+                </button>
+            </div>
+            
+            <div class="text-center">
+                <a href="{{ url_for('login') }}" class="text-blue-400 hover:text-blue-300">
+                    Already have an account? Sign in
+                </a>
+            </div>
+        </form>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}

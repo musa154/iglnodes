@@ -1,0 +1,62 @@
+# Web Framework
+Flask==3.0.0
+flask-socketio==5.3.6
+flask-login==0.6.3
+flask-limiter==3.5.0
+
+# Docker
+docker==6.1.3
+
+# SSH and Terminal
+paramiko==3.3.1
+
+# System Monitoring
+psutil==5.9.6
+
+# Cryptography and Security
+ecdsa==0.18.0
+Werkzeug==3.0.1
+
+# Database
+sqlite3
+
+# Email
+smtplib
+
+# Environment Variables
+python-dotenv==1.0.0
+
+# Networking and Requests
+requests==2.31.0
+
+# Threading and Concurrency
+concurrent.futures
+
+# File Operations
+shutil
+tarfile
+io
+fcntl
+struct
+signal
+
+# System Utilities
+os-sys
+subprocess
+logging
+threading
+time
+datetime
+random
+string
+json
+uuid
+select
+termios
+tty
+socket
+traceback
+base64
+shlex
+collections
+csv
